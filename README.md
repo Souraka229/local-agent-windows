@@ -46,7 +46,7 @@ pip install -r requirements.txt
 cp .env.example .env
 
 # Lance Ollama avec gemma4
-ollama run gemma4:2b
+ollama run gemma4:latest
 
 # Demarre l'agent
 python main.py
@@ -72,7 +72,7 @@ Cree un fichier .env:
 
 ```env
 AGENT_BACKEND=ollama
-OLLAMA_MODEL=gemma4:2b
+OLLAMA_MODEL=gemma4:latest
 ALLOW_GIT=1
 ALLOW_DOCKER=1
 ALLOW_SYSTEM_MONITOR=1
