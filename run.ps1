@@ -10,7 +10,7 @@ Write-Host ""
 
 # Configuration
 $env:AGENT_BACKEND = "ollama"
-$env:OLLAMA_MODEL = "gemma:2b"
+$env:OLLAMA_MODEL = "llama3.2"
 $env:OLLAMA_TEMPERATURE = "0.3"
 
 Write-Host "[1/3] Verification de Python..." -ForegroundColor Yellow

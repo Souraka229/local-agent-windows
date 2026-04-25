@@ -8,7 +8,7 @@ import sys
 
 # Configuration
 os.environ['AGENT_BACKEND'] = 'ollama'
-os.environ['OLLAMA_MODEL'] = 'gemma:2b'
+os.environ['OLLAMA_MODEL'] = 'llama3.2'
 
 import httpx
 
