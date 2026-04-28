@@ -132,6 +132,30 @@ SAISA is a **terminal-based autonomous coding agent** that reads, writes, edits,
 - **Python 3.10+**
 - **Ollama** (optional, for local/free usage): https://ollama.com
 
+### Platform
+
+#### Windows
+
+```cmd
+python -m saisa
+```
+
+Or use `run.bat`:
+```cmd
+run.bat
+```
+
+#### Linux / macOS
+
+```bash
+# Option 1: saisa command (requires PATH)
+export PATH="$HOME/.local/bin:$PATH"
+saisa
+
+# Option 2: python -m (recommended)
+python -m saisa
+```
+
 ### Step 1: Clone
 
 ```bash
@@ -142,13 +166,10 @@ cd local-agent-windows
 ### Step 2: Install
 
 ```bash
-# Add saisa to PATH (required for 'saisa' command)
-export PATH="$HOME/.local/bin:$PATH"
-
 # Install SAISA
 pip install -e ".[all]"
 
-# Or minimal install (Ollama + Groq only, no openai/anthropic SDK)
+# Or minimal install (Ollama + Groq only)
 pip install -e .
 ```
 
