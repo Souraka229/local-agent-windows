@@ -56,6 +56,7 @@ def print_help() -> None:
     table.add_row("/context [path]", "Auto-detect project stack and frameworks")
     table.add_row("/swarm <task>", "Run multi-agent swarm (architect+developer+security)")
     table.add_row("/memory", "Show persistent memory stats")
+    table.add_row("/autopilot <task>", "Autonomous mode: plan, execute, verify")
     table.add_row("/compact", "Toggle compact mode (less verbose)")
     table.add_row("/quit", "Exit SAISA")
     console.print(table)

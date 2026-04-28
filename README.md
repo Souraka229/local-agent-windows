@@ -202,6 +202,20 @@ Auto-detect stack, frameworks, and configuration:
 → stack: [python], frameworks: [FastAPI], has_docker: true, has_ci: true
 ```
 
+### Autonomous Mode (Autopilot)
+Let SAISA handle complex tasks end-to-end: **plan -> execute -> verify**
+
+```bash
+/autopilot Create a full REST API with user authentication using FastAPI and JWT
+```
+
+SAISA will:
+1. Break the task into concrete steps
+2. Execute each step autonomously (create files, install deps, write tests)
+3. Verify the results
+
+Works with any LLM provider. The better the model, the better the autonomy.
+
 ### Turbo Mode
 Built-in response caching and connection pooling for blazing fast inference.
 No extra config needed — always on.

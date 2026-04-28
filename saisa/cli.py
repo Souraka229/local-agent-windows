@@ -287,6 +287,53 @@ def _handle_command(
                 console.print(r.get("response", r.get("error", "No output")))
         return True
 
+    if cmd in ("/autopilot", "/auto", "/pilot"):
+        if not arg:
+            print_error("Usage: /autopilot <objective>")
+            print_info("Example: /autopilot Create a REST API with user auth using FastAPI")
+            return True
+
+        from .autopilot import Autopilot
+        from .ui.console import console
+
+        pilot = Autopilot(
+            provider=llm,
+            on_step_start=lambda s: console.print(f"\n[bold yellow][~] Step {s.id}: {s.description}[/]"),
+            on_step_end=lambda s: console.print(
+                f"[bold {'green' if s.status.value == 'done' else 'red'}]"
+                f"  [{s.status.value}] {s.result[:150]}[/] ({s.duration:.1f}s)"
+            ),
+        )
+
+        # Phase 1: Plan
+        console.print(f"\n[bold magenta]AUTOPILOT[/] Planning: {arg}\n")
+        plan = pilot.plan(arg)
+        console.print(pilot.get_plan_summary(plan))
+
+        # Phase 2: Execute
+        console.print("\n[bold magenta]AUTOPILOT[/] Executing...\n")
+        for event in pilot.execute(plan):
+            if event["event"] == "task_complete":
+                console.print(
+                    f"\n[bold green]Done![/] {event['steps_done']}/{event['steps_total']} steps "
+                    f"in {event['total_duration']}s"
+                )
+            elif event["event"] == "task_failed":
+                console.print(f"\n[bold red]Failed at step {event['failed_step']}[/]")
+
+        # Phase 3: Verify
+        console.print("\n[bold magenta]AUTOPILOT[/] Verifying...\n")
+        verification = pilot.verify(plan)
+        status = "SUCCESS" if verification.get("success") else "ISSUES FOUND"
+        console.print(f"[bold {'green' if verification.get('success') else 'yellow'}]{status}[/]")
+        console.print(verification.get("summary", ""))
+        issues = verification.get("issues", [])
+        if issues:
+            for issue in issues:
+                console.print(f"  [yellow]- {issue}[/]")
+
+        return True
+
     print_error(f"Unknown command: {cmd}. Type /help for available commands.")
     return True
 
