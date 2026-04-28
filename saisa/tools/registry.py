@@ -21,7 +21,7 @@ def _build_catalog() -> None:
     if _TOOL_CATALOG:
         return
 
-    from . import code_tools, file_tools, git_tools, shell_tools
+    from . import code_tools, file_tools, git_tools, project_tools, shell_tools
 
     # ── File tools ──
     _register(
@@ -293,6 +293,116 @@ def _build_catalog() -> None:
             },
         ),
         git_tools.git_checkout,
+    )
+
+    # ── Project tools ──
+    _register(
+        ToolDefinition(
+            name="scaffold_project",
+            description=(
+                "Generate a full project from a template. "
+                "Available templates: python-fastapi, python-cli, react-vite, node-express."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Project name."},
+                    "template": {"type": "string", "description": "Template name (python-fastapi, python-cli, react-vite, node-express)."},
+                    "path": {"type": "string", "description": "Parent directory. Default: current dir."},
+                },
+                "required": ["name", "template"],
+            },
+        ),
+        project_tools.scaffold_project,
+    )
+
+    _register(
+        ToolDefinition(
+            name="list_templates",
+            description="List available project scaffolding templates.",
+            parameters={"type": "object", "properties": {}},
+        ),
+        project_tools.list_templates,
+    )
+
+    _register(
+        ToolDefinition(
+            name="detect_project",
+            description="Auto-detect project stack, frameworks, package manager, and configuration.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Project directory to analyze."},
+                },
+            },
+        ),
+        project_tools.detect_project_context,
+    )
+
+    # ── Memory tools ──
+    from ..memory import Memory as _Mem
+
+    _mem = _Mem()
+
+    def _memory_store(category: str, content: str, tags: str = "") -> str:
+        tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
+        entry_id = _mem.store(category, content, tag_list)
+        return json.dumps({"ok": True, "id": entry_id, "total": _mem.count})
+
+    def _memory_recall(query: str, top_k: int = 5, category: str = "") -> str:
+        results = _mem.recall(query, top_k, category or None)
+        return json.dumps({
+            "results": [
+                {"id": r.id, "category": r.category, "content": r.content[:500], "tags": r.tags, "score": round(r.relevance_score, 3)}
+                for r in results
+            ],
+            "total": len(results),
+        })
+
+    def _memory_stats() -> str:
+        return json.dumps(_mem.stats())
+
+    _register(
+        ToolDefinition(
+            name="memory_store",
+            description="Store a learning, context, or preference in persistent memory.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "category": {"type": "string", "description": "Category: learning, context, preference, error, success."},
+                    "content": {"type": "string", "description": "Content to remember."},
+                    "tags": {"type": "string", "description": "Comma-separated tags for retrieval."},
+                },
+                "required": ["category", "content"],
+            },
+        ),
+        _memory_store,
+    )
+
+    _register(
+        ToolDefinition(
+            name="memory_recall",
+            description="Retrieve relevant memories by query. Uses similarity search.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Search query."},
+                    "top_k": {"type": "integer", "description": "Max results. Default 5."},
+                    "category": {"type": "string", "description": "Filter by category."},
+                },
+                "required": ["query"],
+            },
+        ),
+        _memory_recall,
+    )
+
+    _register(
+        ToolDefinition(
+            name="memory_stats",
+            description="Show memory statistics (entries, categories).",
+            parameters={"type": "object", "properties": {}},
+        ),
+        _memory_stats,
     )
 
 

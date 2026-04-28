@@ -248,6 +248,45 @@ def _handle_command(
         print_info("Compact mode toggled.")
         return True
 
+    if cmd == "/memory":
+        from .memory import Memory
+
+        mem = Memory()
+        stats = mem.stats()
+        print_info(f"  Entries: {stats['total_entries']}")
+        for cat, count in stats.get("categories", {}).items():
+            print_info(f"    {cat}: {count}")
+        return True
+
+    if cmd == "/context":
+        from .tools.project_tools import detect_project_context
+
+        result = detect_project_context(arg or ".")
+        from .ui.console import console
+
+        console.print(result)
+        return True
+
+    if cmd == "/swarm":
+        if not arg:
+            from .swarm import AVAILABLE_AGENTS
+
+            print_info("Available agents:")
+            for name, role in AVAILABLE_AGENTS.items():
+                print_info(f"  {name}: {role.specialty}")
+            print_info("\nUsage: /swarm <task>")
+        else:
+            from .swarm import SwarmOrchestrator
+            from .ui.console import console
+
+            swarm = SwarmOrchestrator(llm)
+            print_info("Running swarm: architect -> developer -> security...")
+            results = swarm.run_swarm(arg)
+            for r in results:
+                console.print(f"\n[bold cyan]--- {r.get('agent', '?')} ---[/]")
+                console.print(r.get("response", r.get("error", "No output")))
+        return True
+
     print_error(f"Unknown command: {cmd}. Type /help for available commands.")
     return True
 

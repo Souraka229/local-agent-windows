@@ -36,7 +36,7 @@ def print_banner(model_name: str, workspace: str) -> None:
     console.print(Panel(banner, border_style="magenta", expand=False))
     console.print(f"  [dim]Model:[/]     [bold]{model_name}[/]")
     console.print(f"  [dim]Workspace:[/] [bold]{workspace}[/]")
-    console.print("  [dim]Commands:[/]  [bold]/help[/] [dim]|[/] [bold]/new[/] [dim]|[/] [bold]/model[/] [dim]|[/] [bold]/save[/] [dim]|[/] [bold]/sessions[/] [dim]|[/] [bold]/quit[/]")
+    console.print("  [dim]Commands:[/]  [bold]/help[/] [dim]|[/] [bold]/new[/] [dim]|[/] [bold]/swarm[/] [dim]|[/] [bold]/memory[/] [dim]|[/] [bold]/context[/] [dim]|[/] [bold]/quit[/]")
     console.print()
 
 
@@ -53,6 +53,9 @@ def print_help() -> None:
     table.add_row("/status", "Show current configuration")
     table.add_row("/tree [path]", "Show project tree")
     table.add_row("/diff", "Show git diff")
+    table.add_row("/context [path]", "Auto-detect project stack and frameworks")
+    table.add_row("/swarm <task>", "Run multi-agent swarm (architect+developer+security)")
+    table.add_row("/memory", "Show persistent memory stats")
     table.add_row("/compact", "Toggle compact mode (less verbose)")
     table.add_row("/quit", "Exit SAISA")
     console.print(table)

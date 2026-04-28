@@ -155,7 +155,56 @@ All 24 tests pass now. Fixed the auth token validation.
 | `/status` | Show configuration |
 | `/tree [path]` | Show project tree |
 | `/diff` | Show git diff |
+| `/context [path]` | Auto-detect project stack and frameworks |
+| `/swarm <task>` | Run multi-agent swarm (architect+developer+security) |
+| `/memory` | Show persistent memory stats |
 | `/quit` | Exit |
+
+## Advanced Features
+
+### Multi-Agent Swarm
+Run multiple specialized agents on a task. Each agent builds on the previous output:
+
+```bash
+/swarm "Design a user authentication system with JWT"
+```
+
+Agents: **Architect** (system design) -> **Developer** (implementation) -> **Security** (review)
+
+Available agents: `developer`, `devops`, `security`, `architect`, `reviewer`
+
+### Project Scaffolding
+Generate full projects from templates:
+
+```
+You > Create a new FastAPI project called my-api
+  > scaffold_project(my-api, python-fastapi)
+
+Templates: python-fastapi, python-cli, react-vite, node-express
+```
+
+### Persistent Memory
+SAISA remembers across sessions — learnings, preferences, project context:
+
+```
+You > Remember that this project uses PostgreSQL 16
+  > memory_store(context, "Project uses PostgreSQL 16", ["database", "postgres"])
+
+You > What database do we use?
+  > memory_recall("database")
+```
+
+### Project Context Detection
+Auto-detect stack, frameworks, and configuration:
+
+```
+/context .
+→ stack: [python], frameworks: [FastAPI], has_docker: true, has_ci: true
+```
+
+### Turbo Mode
+Built-in response caching and connection pooling for blazing fast inference.
+No extra config needed — always on.
 
 ## Configuration (.env)
 
