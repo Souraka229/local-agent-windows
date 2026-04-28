@@ -142,7 +142,10 @@ cd local-agent-windows
 ### Step 2: Install
 
 ```bash
-# Recommended: install with all optional providers
+# Add saisa to PATH (required for 'saisa' command)
+export PATH="$HOME/.local/bin:$PATH"
+
+# Install SAISA
 pip install -e ".[all]"
 
 # Or minimal install (Ollama + Groq only, no openai/anthropic SDK)
@@ -168,16 +171,24 @@ ollama pull llama3.2
 
 ```bash
 saisa
+
+# Or use python -m saisa (recommended - no PATH needed)
+python -m saisa
+
+# Or run directly
+python main.py
 ```
 
 ### Verify Installation
 
 ```bash
+# Option 1: saisa command
 saisa --version
-# → saisa, version 2.0.0
+# -> saisa, version 2.0.0
 
-python -c "from saisa.tools.registry import ToolRegistry; print(f'{len(ToolRegistry().definitions)} tools')"
-# → 27 tools
+# Option 2: python -m (recommended)
+python -m saisa --version
+# -> python -m saisa, version 2.0.0
 ```
 
 ---
@@ -189,6 +200,12 @@ python -c "from saisa.tools.registry import ToolRegistry; print(f'{len(ToolRegis
 ```bash
 # Interactive mode (default)
 saisa
+
+# Or use python -m saisa (recommended - no PATH needed)
+python -m saisa
+
+# Or run directly
+python main.py
 
 # With a specific provider
 saisa --provider groq
