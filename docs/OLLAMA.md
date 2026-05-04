@@ -1,254 +1,131 @@
-# 🧠 Guide Complet - SAISA avec Ollama (Local AI)
+# 🧠 Guide Ollama Complet - SAISA Local AI
 
-> Tout ce que vous devez savoir pour utiliser SAISA en mode 100% local avec Ollama
+> Tout pour utiliser SAISA en mode 100% local avec Ollama
 
 ---
 
 ## 📋 Table des Matières
 
 1. [Pourquoi Ollama ?](#1---pourquoi-ollama-)
-2. [Installation d'Ollama](#2---installation-dollama)
-3. [Configuration initiale](#3---configuration-initiale)
-4. [Téléchargement des modèles](#4---téléchargement-des-modèles)
-5. [Démarrage du service](#5---démarrage-du-service)
-6. [Configuration de SAISA](#6---configuration-de-saisa)
-7. [Premiers pas](#7---premiers-pas)
-8. [Personnalisation des modèles](#8---personnalisation-des-modèles)
-9. [Dépannage](#9---dépannage)
-10. [FAQ](#10---faq)
+2. [Installation](#2---installation)
+3. [Configuration](#3---configuration)
+4. [Modèles](#4---modèles)
+5. [Personnalisation Avancée](#5---personnalisation-avancée)
+6. [API Locale](#6---api-locale)
+7. [Dépannage](#7---dépannage)
+8. [FAQ](#8---faq)
 
 ---
 
 ## 1. Pourquoi Ollama ?
 
 | Avantage | Description |
-|----------|-------------|
-| 🔒 **Confidentialité** | Vos données ne quittent jamais votre machine |
-| 💰 **Gratuit** | Pas d'abonnement API |
-| 🚀 **Rapide** | Pas de latence réseau après premier chargement |
-| 🔧 **Personnalisable** | Modèles fine-tunables |
+|---------|-----------|
+| 🔒 **Confidentialité** | Données locales uniquement |
+| 💰 **Gratuit** | Pas d'API payante |
+| 🚀 **Rapide** | Après premier chargement |
 | ✈️ **Hors ligne** | Fonctionne sans Internet |
-
-**Inconvénients:**
-- Requiert un PC puissant (16GB RAM minimum)
-- Premier lancement plus lent
-- Sans GPU = plus lent
+| 🔧 **Personnalisable** | Fine-tuning |
 
 ---
 
-## 2. Installation d'Ollama
+## 2. Installation
 
-### Option A: Automatique (Recommandé)
-
-**PowerShell (Administrateur):**
+### Windows PowerShell
 ```powershell
 irm https://ollama.com/install.ps1 | iex
 ```
 
-### Option B: Manuelle
-
-1. Téléchargez depuis : https://ollama.com/download/windows
-2. Exécutez le fichier `.exe`
-3. Suivez les instructions
-
-### Vérifier l'installation
-
+### Vérifier
 ```powershell
 ollama --version
 ```
 
-Devrait afficher :
-```
-ollama version 0.5.6
-```
-
 ---
 
-## 3. Configuration Initiale
-
-### Ajouter au PATH (si nécessaire)
-
-**PowerShell:**
-```powershell
-$env:PATH += ";$env:LOCALAPPDATA\Ollama"
-```
-
-**Permanent:**
-```powershell
-[System.Environment]::SetEnvironmentVariable(
-    "PATH",
-    [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";$env:LOCALAPPDATA\Ollama",
-    "Machine"
-)
-```
-
-### Redémarrer le terminal
-
-Fermez et rouvrez votre terminal.
-
----
-
-## 4. Téléchargement des Modèles
-
-### Modèles recommandés
-
-| Modèle | Taille | VRAM | Description |
-|--------|--------|------|-------------|
-| `llama3.2` | 2GB | 4GB | **Recommandé** |
-| `llama3.2:1b` | 1GB | 2GB | Pour PC limités |
-| `phi3` | 2GB | 4GB | Microsoft |
-| `mistral` | 4GB | 8GB |Excellent équilibre |
-| `gemma:2b` | 1GB | 2GB | Google |
-| `codellama` | 3GB | 6GB | Spécialisé code |
-
-### Commandes
-
-**Télécharger:**
-```powershell
-ollama pull llama3.2
-```
-
-**Lister:**
-```powershell
-ollama list
-```
-
-**Supprimer:**
-```powershell
-ollama rm llama3.2
-```
-
-### Quelle taille pour mon PC ?
-
-| Configuration | Modèle |
-|----------------|--------|
-| 4GB VRAM | `llama3.2:1b`, `phi3` |
-| 8GB VRAM | `llama3.2`, `gemma:2b` |
-| 16GB+ VRAM | `llama3.2`, `mistral` |
-
----
-
-## 5. Démarrage du Service
-
-### Mode serveur
-
-```powershell
-ollama serve
-```
-
-Le service écoute sur `http://localhost:11434`
-
-### Mode interactif (test)
-
-```powershell
-ollama run llama3.2
-```
-
-Tapez votre message, puis `Ctrl+Shift+C` pour quitter.
-
----
-
-## 6. Configuration de SAISA
-
-### Fichier .env
-
-Créez `.env` à la racine :
+## 3. Configuration .env
 
 ```env
-# =============================================================================
-# CONFIGURATION SAISA - MODE OLLAMA (LOCAL)
-# =============================================================================
-
-# BACKEND
 AGENT_BACKEND=ollama
-
-# OLLAMA
 OLLAMA_MODEL=llama3.2
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_TEMPERATURE=0.7
 OLLAMA_NUM_CTX=8192
-OLLAMA_REQUEST_TIMEOUT_SEC=300
-
-# FEATURES
-ALLOW_GIT=1
-ALLOW_DOCKER=0
-ALLOW_POWERSHELL=1
-ALLOW_OPEN_BROWSER=0
-ALLOW_FETCH_URL=1
-ALLOW_SMTP_SEND=0
-ALLOW_SYSTEM_MONITOR=1
-
-# AUTONOMOUS MODE
-AUTONOMOUS_MODE=1
-AGENT_MAX_TOOL_ROUNDS=25
-SELF_EVAL_ENABLED=1
-
-# MEMORY
-LEARNING_MODE=1
-LOCAL_MEMORY_JOURNAL=memory/journal.md
-
-# PERSONNALISATION
-AGENT_NAME=SAISA
-AGENT_OWNER_NAME=
-```
-
-### Variables temporaires PowerShell
-
-```powershell
-$env:AGENT_BACKEND = "ollama"
-$env:OLLAMA_MODEL = "llama3.2"
-python main.py
 ```
 
 ---
 
-## 7. Premiers Pas
+## 4. Modèles Recommandés
 
-### Lancement
+| Modèle | Taille | RAM | Description |
+|--------|-------|-----|------------|
+| `llama3.2` | 2GB | 4GB | Recommandé |
+| `llama3.2:1b` | 1GB | 2GB | PC limités |
+| `phi3` | 2GB | 4GB | Microsoft |
+| `mistral` | 4GB | 8GB | Équilibre |
+| `gemma:2b` | 1GB | 2GB | Google |
+| `codellama` | 3GB | 6GB | Code |
 
+### Commandes
 ```powershell
-python main.py
+ollama pull llama3.2    # Télécharger
+ollama list               # Liste
+ollama rm llama3.2        # Supprimer
 ```
-
-### Tests
-
-Tapez :
-```
-hello
-```
-puis
-```
-search python asyncio tutorial
-```
-puis
-```
-write hello.py with print("Hello from SAISA!")
-```
-
-### Quitter
-
-Tapez : `quit` ou `exit` ou `q`
 
 ---
 
-## 8. Personnalisation
+## 5. Personnalisation Avancée
 
 ### Changer le modèle
-
-Dans `.env`:
 ```env
 OLLAMA_MODEL=mistral
 ```
 
-### Modèle smaller (tests)
-
+### Température ( créativié )
 ```env
-OLLAMA_MODEL=llama3.2:1b
+OLLAMA_TEMPERATURE=0.9   # Plus créatif
+OLLAMA_TEMPERATURE=0.3   # Plus précis
+```
+
+### Contexte ( mémoire )
+```env
+OLLAMA_NUM_CTX=4096     # Petit
+OLLAMA_NUM_CTX=16384    # Grand
 ```
 
 ---
 
-## 9. Dépannage
+## 6. API Locale
+
+### Démarrer le serveur
+```powershell
+ollama serve
+```
+
+### Tester l'API
+```powershell
+curl http://localhost:11434/api/tags -s | ConvertFrom-Json
+```
+
+### Avec Python
+```python
+import httpx
+
+response = httpx.post(
+    "http://localhost:11434/api/chat",
+    json={
+        "model": "llama3.2",
+        "messages": [{"role": "user", "content": "hello"}],
+        "stream": False
+    }
+)
+print(response.json())
+```
+
+---
+
+## 7. Dépannage
 
 ### "command not found"
 ```powershell
@@ -266,61 +143,53 @@ ollama pull llama3.2
 ```
 
 ### Trop lent
-- Utilsier modèle plus petit dans `.env`
-- Ou passer à Groq
+- Modèle plus petit
+- Ou utiliser Groq
 
 ### Out of Memory
-1. Fermer les autres apps
-2. Utiliser modèle plus petit
-3. Ajouter RAM
+- Fermer apps
+- Modèle plus petit
 
 ---
 
-## 10. FAQ
+## 8. FAQ
 
-### Q: Ollama est-il gratuit ?
-**R:** Oui, 100% gratuit.
+### Ollama gratuit ? ✅ Oui
 
-### Q: Avec AMD GPU ?
-**R:** Oui, via ROCm.
+### Avec AMD GPU ? ✅ ROCm
 
-### Q: Comment mettre à jour ?
-```powershell
-ollama update
-```
+### Plusieurs modèles ? ✅ `%LOCALAPPDATA%\Ollama\models`
 
-### Q: Plusieurs modèles ?
-**R:** Oui, dans `%LOCALAPPDATA%\Ollama\models`
-
-### Q: Libérer mémoire ?
+### Libérer mémoire ?
 ```powershell
 ollama stop
 ```
 
-### Ollama vs Groq ?
+### Ollama vs Groq
 
-| Critère | Ollama | Groq |
-|--------|-------|-----|
+| | Ollama | Groq |
+|--------|------|
 | Prix | Gratuit | Payant |
 | Latence | Variable | Ultra-rapide |
-| Vie privée | 100% local | Cloud |
-| Setup | Requis | Minimal |
+| Vie privée | 100% | Cloud |
 
 ---
 
 ## ✅ Checklist
 
 - [ ] Ollama installé
-- [ ] `ollama --version` fonctionne
-- [ ] Modèle téléchargé (`ollama list`)
-- [ ] Service démarré (`ollama serve`)
-- [ ] `.env` créé avec `AGENT_BACKEND=ollama`
+- [ ] `ollama --version` OK
+- [ ] Modèle téléchargé
+- [ ] Service démarré
+- [ ] `.env` configuré
 - [ ] `python main.py` fonctionne
 
 ---
 
+**🎉 Bon voyage avec SAISA local !**
+
 <div align="center">
 
-**🎉 Bon voyage avec SAISA en mode local !**
+Fait avec ❤️
 
 </div>
