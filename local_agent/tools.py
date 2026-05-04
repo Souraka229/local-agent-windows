@@ -3,27 +3,27 @@ from __future__ import annotations
 import json
 import re
 import smtplib
-from collections import OrderedDict
-from datetime import datetime
-from time import monotonic
-from typing import Any
 import subprocess
 import webbrowser
+from collections import OrderedDict
+from datetime import datetime
 from email.mime.text import MIMEText
 from pathlib import Path
+from time import monotonic
+from typing import Any
 from urllib.parse import quote_plus
 
 import httpx
 from duckduckgo_search import DDGS
 
 from .config import (
+    ALLOW_DOCKER,
     ALLOW_FETCH_URL,
+    ALLOW_GIT,
     ALLOW_OPEN_BROWSER,
     ALLOW_POWERSHELL,
     ALLOW_SMTP_SEND,
-    ALLOW_GIT,
     ALLOW_SYSTEM_MONITOR,
-    ALLOW_DOCKER,
     FETCH_URL_TIMEOUT_SEC,
     LOCAL_MEMORY_JOURNAL,
     MAX_EMAIL_BODY_CHARS,
@@ -33,14 +33,14 @@ from .config import (
     MAX_READ_BYTES,
     MAX_SHELL_OUTPUT,
     SHELL_TIMEOUT_SEC,
-    WEB_SEARCH_CACHE_MAX_ENTRIES,
-    WEB_SEARCH_CACHE_TTL_SEC,
     SMTP_FROM,
     SMTP_HOST,
     SMTP_PASSWORD,
     SMTP_PORT,
     SMTP_USE_TLS,
     SMTP_USER,
+    WEB_SEARCH_CACHE_MAX_ENTRIES,
+    WEB_SEARCH_CACHE_TTL_SEC,
     WORKSPACE_ROOT,
 )
 from .policies import DeleteGuard
@@ -527,7 +527,7 @@ class ToolContext:
                 tag = args.get("tag")
                 tag_s = str(tag).strip() if tag is not None and str(tag).strip() else None
                 return self.read_memory_notes(mc_int, tag_s)
-            
+
             # ========== NOUVEAUX OUTILS ==========
             if name == "run_git":
                 return self.run_git(args.get("command", ""))
@@ -546,24 +546,24 @@ class ToolContext:
         except ValueError as e:
             return json.dumps({"error": str(e)}, ensure_ascii=False)
         return json.dumps({"error": f"Outil inconnu : {name}"}, ensure_ascii=False)
-    
+
     # ========== NOUVELLES MÉTHODES ==========
-    
+
     def run_git(self, command: str) -> str:
         """Execute a git command in the workspace."""
         if not ALLOW_GIT:
             return json.dumps({"error": "Git disabled. Set ALLOW_GIT=1 in .env."}, ensure_ascii=False)
-        
+
         cmd = (command or "").strip()
         if not cmd:
             return json.dumps({"error": "Empty git command."}, ensure_ascii=False)
-        
+
         # Security
         forbidden = ["rm -rf /", "dd if=", ":(){:|:&};:", "chmod -R 777 /"]
         for forb in forbidden:
             if forb in cmd:
                 return json.dumps({"error": f"Dangerous command: {forb}"}, ensure_ascii=False)
-        
+
         try:
             # Use shell=False for better security, pass as a list
             args = ["git"] + cmd.split()
@@ -587,15 +587,15 @@ class ToolContext:
             return json.dumps({"error": "Timeout after 60s."}, ensure_ascii=False)
         except Exception as e:
             return json.dumps({"error": str(e)}, ensure_ascii=False)
-    
+
     def system_info(self) -> str:
         """Retourne des informations système."""
         if not ALLOW_SYSTEM_MONITOR:
             return json.dumps({"error": "System monitor désactivé."}, ensure_ascii=False)
-        
-        import platform
+
         import os
-        
+        import platform
+
         info = {
             "platform": platform.system(),
             "platform_version": platform.version(),
@@ -607,12 +607,12 @@ class ToolContext:
             "current_dir": os.getcwd(),
         }
         return json.dumps(info, ensure_ascii=False)
-    
+
     def docker_ps(self, all_containers: bool = True) -> str:
         """Liste les conteneurs Docker."""
         if not ALLOW_DOCKER:
             return json.dumps({"error": "Docker désactivé. Mets ALLOW_DOCKER=1 dans .env."}, ensure_ascii=False)
-        
+
         try:
             cmd = ["docker", "ps", "--format", "{{.ID}}|{{.Names}}|{{.Status}}|{{.Image}}"]
             if all_containers:
@@ -634,15 +634,15 @@ class ToolContext:
             return json.dumps({"error": "Docker non trouvé. Est-il installé?"}, ensure_ascii=False)
         except Exception as e:
             return json.dumps({"error": str(e)}, ensure_ascii=False)
-    
+
     def docker_exec(self, container: str, command: str) -> str:
         """Exécute une commande dans un conteneur Docker."""
         if not ALLOW_DOCKER:
             return json.dumps({"error": "Docker désactivé."}, ensure_ascii=False)
-        
+
         if not container or not command:
             return json.dumps({"error": "Container et commande requis."}, ensure_ascii=False)
-        
+
         try:
             proc = subprocess.run(
                 ["docker", "exec", container, "sh", "-c", command],
@@ -657,13 +657,13 @@ class ToolContext:
             }, ensure_ascii=False)
         except Exception as e:
             return json.dumps({"error": str(e)}, ensure_ascii=False)
-    
+
     def schedule_task(self, task: str, cron: str = ""):
         """Planifie une tâche (simplifié - enregistre dans un fichier)."""
         if not cron:
             # Exécution simple
             return self.run_powershell(task)
-        
+
         # Enregistrer pour plus tard (scheduler complet dans une version future)
         return json.dumps({
             "message": "Planification enregistrée",
@@ -671,14 +671,14 @@ class ToolContext:
             "cron": cron,
             "note": "Fonctionnalité complète à venir",
         }, ensure_ascii=False)
-    
+
     def list_skills(self) -> str:
         """Liste les skills disponibles."""
         from .skills_loader import get_skills_loader
         loader = get_skills_loader()
         skills = loader.list_skills()
         return json.dumps({"skills": skills}, ensure_ascii=False)
-    
+
     def execute_skill(self, skill_name: str, params: dict) -> str:
         """Exécute un skill avec des paramètres."""
         from .skills_loader import get_skills_loader

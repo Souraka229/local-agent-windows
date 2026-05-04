@@ -48,8 +48,8 @@ class AgentOrchestrator:
 
     def execute_step(self, step: dict[str, Any]) -> str:
         action = step.get("action", "")
-        detail = step.get("detail", "")
         tool = step.get("tool", "terminal").lower()
+        detail = step.get("detail", "")
 
         agent = self.agents.get(tool, self.agents["terminal"])
         try:
@@ -60,15 +60,15 @@ class AgentOrchestrator:
     def create_plan(self, task: str) -> list[dict[str, Any]]:
         """Create execution plan via Cerebrum."""
         result = self.cerebrum.analyze_task(task)
-        
+
         if "error" in result:
             print(f"Plan error: {result.get('error')}")
             return []
-        
+
         steps = result.get("steps", result.get("plan", []))
         if isinstance(steps, list):
             return steps
-        
+
         return [{"action": task, "detail": str(steps), "tool": "terminal"}]
 
     def execute_task(self, task: str) -> str:
@@ -89,7 +89,7 @@ class AgentOrchestrator:
         for step in steps:
             order = step.get("order", len(results) + 1)
             action = step.get("action", "?")
-            detail = step.get("detail", "")
+            _detail = step.get("detail", "")
 
             print(f"Step {order}: {action}")
 
@@ -100,7 +100,7 @@ class AgentOrchestrator:
             print(f"  {'OK' if ok else 'FAIL'}: {str(result)[:100]}")
 
             if not ok and step.get("critical", False):
-                print(f"\nCritical step failed. Stopping.")
+                print("\nCritical step failed. Stopping.")
                 break
 
         return self._format_results(results)
@@ -233,7 +233,7 @@ class GitAgent(BaseAgent):
 
         # First check action, then detail
         # action is the git verb: "status", "commit", "push", etc.
-        
+
         if a == "status":
             return self.tc.run_git("status")
         if a == "log":
@@ -257,11 +257,11 @@ class GitAgent(BaseAgent):
             return self.tc.run_git(f"checkout {d}")
         if a == "diff":
             return self.tc.run_git("diff")
-        
+
         # Fallback: use detail as-is if it's a valid git command
         if d:
             return self.tc.run_git(d)
-        
+
         return self.tc.run_git(a)
 
 

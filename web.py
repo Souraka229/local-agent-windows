@@ -7,7 +7,6 @@ Then open: http://localhost:7860
 
 import os
 import sys
-from pathlib import Path
 from typing import Optional
 
 import httpx
@@ -35,26 +34,26 @@ def chat(message: str, history: Optional[list] = None) -> str:
         AI response or error message.
     """
     client = httpx.Client(timeout=TIMEOUT)
-    
+
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-    
+
     # Add history
     if history:
         for user_msg, bot_msg in history:
             messages.append({"role": "user", "content": user_msg})
             messages.append({"role": "assistant", "content": bot_msg})
-    
+
     messages.append({"role": "user", "content": message})
-    
+
     try:
         response = client.post(
             f"{OLLAMA_URL}/api/chat",
             json={"model": MODEL, "messages": messages, "stream": False}
         )
-        
+
         if response.status_code != 200:
             return f"❌ Error: {response.status_code}"
-        
+
         return response.json()["message"]["content"]
     except Exception as e:
         return f"❌ Error: {e}"
@@ -64,7 +63,7 @@ def chat(message: str, history: Optional[list] = None) -> str:
 
 # ==== WEB INTERFACE with Flask ====
 try:
-    from flask import Flask, render_template_string, request, jsonify
+    from flask import Flask, jsonify, render_template_string, request
     HAS_FLASK = True
 except ImportError:
     HAS_FLASK = False
@@ -74,7 +73,7 @@ except ImportError:
 def create_app() -> Flask:
     """Create Flask application."""
     app = Flask(__name__)
-    
+
     HTML_TEMPLATE = """
     <!DOCTYPE html>
     <html>
@@ -172,20 +171,20 @@ def create_app() -> Flask:
     </body>
     </html>
     """
-    
+
     @app.route("/")
     def index():
         return render_template_string(HTML_TEMPLATE)
-    
+
     @app.route("/api/chat", methods=["POST"])
     def api_chat():
         data = request.get_json()
         message = data.get("message", "")
         history = data.get("history", [])
-        
+
         response = chat(message, history)
         return jsonify({"response": response})
-    
+
     return app
 
 
@@ -195,15 +194,15 @@ def main():
         print("❌ Flask not installed!")
         print("Install with: pip install flask")
         sys.exit(1)
-    
+
     app = create_app()
     print("=" * 50)
     print("🧠 SAISA Web Interface")
     print("=" * 50)
-    print(f"🌐 Open: http://localhost:7860")
+    print("🌐 Open: http://localhost:7860")
     print("Press Ctrl+C to stop")
     print()
-    
+
     app.run(host="0.0.0.0", port=7860, debug=False)
 
 

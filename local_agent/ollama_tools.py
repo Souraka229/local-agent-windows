@@ -3,13 +3,13 @@ from __future__ import annotations
 from typing import Any
 
 from .config import (
+    ALLOW_DOCKER,
     ALLOW_FETCH_URL,
+    ALLOW_GIT,
     ALLOW_OPEN_BROWSER,
     ALLOW_POWERSHELL,
     ALLOW_SMTP_SEND,
-    ALLOW_GIT,
     ALLOW_SYSTEM_MONITOR,
-    ALLOW_DOCKER,
 )
 
 # Schémas compatibles API chat Ollama / Groq OpenAI (outils type « function »).
@@ -336,7 +336,7 @@ def agent_function_tools() -> list[dict[str, Any]]:
     out.append(_WHATSAPP_TOOL)
     if ALLOW_OPEN_BROWSER:
         out.append(_OPEN_BROWSER_TOOL)
-    
+
     # Ajouter les nouveaux outils
     if ALLOW_GIT:
         out.append(_GIT_TOOL)
@@ -345,9 +345,9 @@ def agent_function_tools() -> list[dict[str, Any]]:
     if ALLOW_DOCKER:
         out.append(_DOCKER_PS_TOOL)
         out.append(_DOCKER_EXEC_TOOL)
-    
+
     # Skills (toujours disponibles)
     out.append(_LIST_SKILLS_TOOL)
     out.append(_EXECUTE_SKILL_TOOL)
-    
+
     return out

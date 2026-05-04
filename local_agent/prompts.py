@@ -4,7 +4,6 @@ from pathlib import Path
 
 from .config import (
     AGENT_BACKEND,
-    AGENT_NAME,
     AGENT_OWNER_NAME,
     AGENT_OWNER_ONLINE_HINT,
     AGENT_PERFORMANCE_MODE,
@@ -12,9 +11,6 @@ from .config import (
     ALLOW_OPEN_BROWSER,
     ALLOW_POWERSHELL,
     ALLOW_SMTP_SEND,
-    ALLOW_GIT,
-    ALLOW_SYSTEM_MONITOR,
-    ALLOW_DOCKER,
 )
 
 

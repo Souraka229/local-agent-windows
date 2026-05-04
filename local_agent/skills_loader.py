@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import os
 from pathlib import Path
 from typing import Any
 
@@ -16,17 +15,17 @@ from local_agent.config import WORKSPACE_ROOT
 
 class SkillsLoader:
     """Charge et exécute les skills dynamiques."""
-    
+
     def __init__(self, skills_dir: Path | None = None):
         self.skills_dir = skills_dir or (Path(WORKSPACE_ROOT) / "skills")
         self._skills: dict[str, Any] = {}
         self._load_skills()
-    
+
     def _load_skills(self) -> None:
         """Charge tous les skills disponibles."""
         if not self.skills_dir.exists():
             return
-        
+
         for file in self.skills_dir.glob("*.py"):
             if file.name.startswith("_") or file.stem in ("base", "loader"):
                 continue
@@ -35,7 +34,7 @@ class SkillsLoader:
                 if spec and spec.loader:
                     module = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(module)
-                    
+
                     # Enregistrer les functions marked comme skills
                     for name in dir(module):
                         obj = getattr(module, name, None)
@@ -43,21 +42,21 @@ class SkillsLoader:
                             self._skills[name] = obj
             except Exception as e:
                 print(f"Erreur chargement skill {file.name}: {e}")
-    
+
     def list_skills(self) -> list[str]:
         """Liste tous les skills disponibles."""
         return list(self._skills.keys())
-    
+
     def get_skill(self, name: str) -> Any:
         """Récupère un skill par son nom."""
         return self._skills.get(name)
-    
+
     def execute_skill(self, name: str, **kwargs) -> str:
         """Exécute un skill et retourne le résultat."""
         skill = self.get_skill(name)
         if not skill:
             return f"Skill '{name}' non trouvé. Skills disponibles: {self.list_skills()}"
-        
+
         try:
             result = skill(**kwargs)
             return str(result) if result is not None else "Skill exécuté avec succès"
@@ -102,13 +101,13 @@ def code_review(file_path: str, focus: str = "general") -> str:
     path = Path(file_path)
     if not path.exists():
         return f"Fichier non trouvé: {file_path}"
-    
+
     content = path.read_text(encoding="utf-8")
     lines = content.split("\n")
-    
+
     issues = []
     suggestions = []
-    
+
     # Analyse basique selon le focus
     if focus in ("general", "security"):
         # Vérifications de sécurité basiques
@@ -121,34 +120,34 @@ def code_review(file_path: str, focus: str = "general") -> str:
                 issues.append(f"Ligne {i}: Utilisation de exec() potentiellement dangereuses")
             if "os.system(" in line:
                 issues.append(f"Ligne {i}: Utilisation de os.system() - valider les entrées")
-    
+
     if focus in ("general", "performance"):
         for i, line in enumerate(lines, 1):
             if ".append(" in line and "for" in lines[max(0, i-2):i+1]:
                 suggestions.append(f"Ligne {i}: Envisager list comprehension pour de meilleures perfs")
-    
+
     if focus in ("general", "style"):
         if len(lines) > 500:
             suggestions.append(f"Fichier très long ({len(lines)} lignes). Envisager le splitter.")
         for i, line in enumerate(lines, 1):
             if len(line) > 120:
                 suggestions.append(f"Ligne {i}: Ligne très longue ({len(line)} chars)")
-    
+
     result = [f"# Code Review: {path.name}", f"## Focus: {focus}\n"]
-    
+
     if issues:
         result.append("## 🔴 Problèmes détectés")
         for issue in issues:
             result.append(f"- {issue}")
-    
+
     if suggestions:
         result.append("\n## 💡 Suggestions d'amélioration")
         for sug in suggestions:
             result.append(f"- {sug}")
-    
+
     if not issues and not suggestions:
         result.append("✅ Aucune anomalie détectée!")
-    
+
     return "\n".join(result)
 
 
@@ -158,10 +157,10 @@ def analyze_file(file_path: str) -> str:
     path = Path(file_path)
     if not path.exists():
         return f"Fichier non trouvé: {file_path}"
-    
+
     content = path.read_text(encoding="utf-8")
     lines = content.split("\n")
-    
+
     stats = {
         "fichier": path.name,
         "lignes": len(lines),
@@ -169,7 +168,7 @@ def analyze_file(file_path: str) -> str:
         "mots": len(content.split()),
         "extensions": path.suffix,
     }
-    
+
     return json.dumps(stats, indent=2, ensure_ascii=False)
 
 
@@ -179,34 +178,34 @@ def generate_documentation(file_path: str) -> str:
     path = Path(file_path)
     if not path.exists():
         return f"Fichier non trouvé: {file_path}"
-    
+
     if path.suffix != ".py":
         return "Seuls les fichiers Python sont supportés pour l'instant"
-    
+
     content = path.read_text(encoding="utf-8")
     lines = content.split("\n")
-    
+
     doc = [f"# Documentation: {path.name}\n"]
-    
+
     # Trouver les functions et classes
     in_class = ""
-    in_function = ""
-    
+    in_function = ""  # noqa: F841
+
     for i, line in enumerate(lines, 1):
         stripped = line.strip()
-        
+
         # Classes
         if stripped.startswith("class "):
             parts = stripped[6:].split("(")
             in_class = parts[0]
             doc.append(f"\n## Classe: {in_class}")
-        
+
         # Fonctions
         if stripped.startswith("def "):
             parts = stripped[4:].split("(")
             func_name = parts[0]
             params = parts[1].rstrip("):") if len(parts) > 1 else ""
-            
+
             # Chercher le docstring
             docstring = ""
             if i < len(lines) and '"""' in lines[i]:
@@ -214,11 +213,11 @@ def generate_documentation(file_path: str) -> str:
                     if '"""' in lines[j]:
                         docstring = lines[j].strip().strip('"""')
                         break
-            
+
             doc.append(f"\n### `{func_name}({params})`")
             if docstring:
                 doc.append(f"_{docstring}_")
-    
+
     return "\n".join(doc)
 
 
@@ -226,7 +225,7 @@ def generate_documentation(file_path: str) -> str:
 def explain_error(error_message: str) -> str:
     """Explique une erreur Python et propose une solution."""
     error = error_message.strip()
-    
+
     explanations = {
         "IndentationError": "Erreur d'indentation. Vérifiez la cohérence des espaces/tabulations.",
         "SyntaxError": "Erreur de syntaxe. Vérifiez les parenthèses, virgules, etc.",
@@ -238,9 +237,9 @@ def explain_error(error_message: str) -> str:
         "AttributeError": "Attribut non trouvé sur l'objet.",
         "ValueError": "Valeur invalide pour l'opération.",
     }
-    
+
     for err_type, explanation in explanations.items():
         if err_type in error:
             return f"## 🔍 Analyse de l'erreur\n\n**Type**: {err_type}\n\n**Explication**: {explanation}\n\n**Message original**:\n```\n{error}\n```"
-    
+
     return f"## 🔍 Erreur inconnue\n\nJe ne reconnais pas ce type d'erreur.\n\n**Message**:\n```\n{error}\n```"
