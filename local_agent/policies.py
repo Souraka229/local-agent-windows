@@ -1,26 +1,41 @@
+"""
+Safety policies and guards for SAISA agent.
+Protections against accidental deletion and harmful actions.
+"""
+
 from __future__ import annotations
 
 
 class DeleteGuard:
-    """Exige 5 confirmations explicites avant toute suppression de fichier."""
-
+    """Requires 5 explicit confirmations before any file deletion."""
+    
     REQUIRED_CONFIRMATIONS = 5
-    TOKEN = "OUI"
-
+    TOKEN = "YES"
+    
     def confirm_delete(self, path_display: str) -> bool:
+        """Confirm file deletion.
+        
+        Args:
+            path_display: Path to delete (for display).
+            
+        Returns:
+            True if confirmed, False otherwise.
+        """
         print()
-        print("!!! SUPPRESSION DE FICHIER DEMANDÉE !!!")
-        print(f"  Cible : {path_display}")
+        print("!!! FILE DELETION REQUESTED !!!")
+        print(f"  Target: {path_display}")
         print(
-            f"  Tu dois taper exactement « {self.TOKEN} » "
-            f"{self.REQUIRED_CONFIRMATIONS} fois de suite pour autoriser."
+            f"  Type exactly '{self.TOKEN}' "
+            f"{self.REQUIRED_CONFIRMATIONS} times in a row to confirm."
         )
-        print("  Tape autre chose ou Entrée vide pour annuler.")
+        print("  Press Enter or type anything else to cancel.")
         print()
+        
         for i in range(1, self.REQUIRED_CONFIRMATIONS + 1):
-            raw = input(f"  Confirmation {i}/{self.REQUIRED_CONFIRMATIONS} : ").strip()
+            raw = input(f"  Confirm {i}/{self.REQUIRED_CONFIRMATIONS}: ").strip()
             if raw != self.TOKEN:
-                print("  Annulé : confirmation refusée ou incorrecte.")
+                print("  ❌ Cancelled: confirmation refused or incorrect.")
                 return False
-        print("  Les 5 confirmations sont enregistrées : suppression autorisée pour ce fichier.")
+        
+        print("  ✅ All confirmations received: deletion authorized.")
         return True
