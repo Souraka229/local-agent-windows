@@ -1,105 +1,107 @@
 # SAISA - Super AI Self-Autonomous Agent
 
-## Description
+> 🤖 Powerful local AI agent that works 100% offline on your machine!
 
-SAISA (Super AI Self-Autonomous) est un agent IA 100% local ultra-puissant qui fonctionne dans ton terminal.
+## 🚀 Quick Start
 
-### Objectif: 1M+ etoiles GitHub
+```bash
+# Clone the repo
+git clone https://github.com/Souraka229/local-agent-windows
+cd local-agent-windows
 
-## Fonctionnalites Principales
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure (optional)
+cp .env.example .env
+
+# Run with Ollama (recommended)
+ollama run llama3.2
+python main.py
+
+# OR use Groq API
+python main.py
+```
+
+## ✨ Features
 
 | Feature | Description |
 |---------|-------------|
-| IA Locale | Gemma 4 via Ollama - pas de cloud, pas de latence |
-| Autonome | Fonctionne sans supervision avec /autopilot |
-| Browser Automation | Controle Chrome avec Playwright |
-| Docker | Gestion de conteneurs |
-| Git integre | Commandes Git directes |
-| Memoire Apprenante | SQLite qui apprend de ses erreurs |
-| Sandbox securisee | Isolation Docker |
-| Skills | Systeme extensible de plugins |
+| 🧠 Local AI | Powered by Ollama (Gemma/Llama) - no cloud, zero latency |
+| 🎯 Autonomous | Run tasks automatically with `/autopilot` |
+| 🌐 Web Search | DuckDuckGo integration for live search |
+| 📦 Docker | Container management support |
+| 🔧 Git Built-in | Full Git command integration |
+| 💾 Learning Memory | SQLite that learns from mistakes |
+| 🔒 Safe Sandbox | Docker isolation for secure execution |
+| 🛠️ Extensible | Plugin system with skills |
 
-## Architecture
+## 📁 Architecture
 
 ```
 local-agent-windows/
-├── brain/              # Cerebrum (Gemma 4 - Planification)
-├── agents/             # Orchestrateur (7 agents specialises)
-├── tools/              # Tool Layer + Browser (Playwright)
-├── memory/             # SQLite Learning System
-├── sandbox/            # Docker Execution Sandbox
-├── api/                # Interface CLI
-└── main.py             # CLI Original
+├── brain/              # AI Brain (Ollama - Planning)
+├── agents/             # Orchestrator (7 specialized agents)
+├── tools/             # Tool Layer + Browser (Playwright)
+├── memory/             # Learning System
+├── sandbox/            # Docker Sandbox
+├── api/                # CLI Interface
+└── main.py             # Entry Point
 ```
 
-## Installation Rapide
+## ⚙️ Configuration
 
-```bash
-# Clone le repo
-git clone https://github.com/Souraka229/local-agent-windows.git
-cd local-agent-windows
-
-# Installe les dependances
-pip install -r requirements.txt
-
-# Configure (optionnel)
-cp .env.example .env
-
-# Lance Ollama avec gemma4
-ollama run gemma4:latest
-
-# Demarre l'agent
-python main.py
-```
-
-## Utilisation
-
-```bash
-# Mode interactif
-python -m api.cli --interactive
-
-# Mode autopilot
-python main.py
-/autopilot 60 creer un projet Python
-
-# Voir les stats
-python -m api.cli --stats
-```
-
-## Configuration
-
-Cree un fichier .env:
+Create `.env` file:
 
 ```env
+# Backend: ollama or groq
 AGENT_BACKEND=ollama
-OLLAMA_MODEL=gemma4:latest
+
+# Ollama settings
+OLLAMA_MODEL=llama3.2
+
+# Enable features
 ALLOW_GIT=1
 ALLOW_DOCKER=1
 ALLOW_SYSTEM_MONITOR=1
-ALLOW_POWERSHELL=1
-ALLOW_OPEN_BROWSER=1
 AUTONOMOUS_MODE=1
 LEARNING_MODE=1
+
+# Custom name
 AGENT_NAME=SAISA
 ```
 
-## Comment l'IA Apprend
+## 📖 Commands
 
-1. Memoire SQLite - Sauvegarde chaque conversation
-2. Analyse des erreurs - Apprend de ses failures
-3. Competences acquises - Memorise les taches reussies
-4. Score d'apprentissage - Evalue sa progression
+```bash
+# Interactive mode
+python -m api.cli --interactive
 
-## License
+# Autonomous mode
+python main.py
+/autopilot 60 create a Python project
 
-Ce projet est sous license MIT - voir le fichier LICENSE pour les details.
+# Check stats
+python -m api.cli --stats
+```
 
-## Avertissement
+## 🧠 How AI Learns
 
-Ce logiciel est fourni "tel quel", sans garantie d'aucune sorte.
+1. **Memory** - Saves every conversation
+2. **Error Analysis** - Learns from failures
+3. **Skills** - Remembers successful tasks
+4. **Score** - Tracks progress
+
+## 🤝 Contributing
+
+Contributions welcome! Open an issue or PR.
+
+## 📜 License
+
+MIT License - see LICENSE file.
 
 ---
 
-⭐ Si ce projet t'aide, mets une etoile!
+**⭐ Star if useful!**
 
-Fait avec amour par @Souraka229
+Made with ❤️ by @Souraka229
