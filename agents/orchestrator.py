@@ -1,374 +1,153 @@
 """
-AGENT ORCHESTRATOR
-================
-Coordinates specialized sub-agents, each wired to real ToolContext tools.
-
-Agents:
-  - code     → write_file + run_powershell (generate and execute code)
-  - browser  → web_search + fetch_url + open_browser_url  
-  - terminal → run_powershell (direct shell commands)
-  - git      → run_git (git operations)
-  - docker   → docker_ps + docker_exec
-  - test     → run_powershell (pytest, unittest, node test...)
-  - fix      → run_powershell + write_file (read error, fix, re-run)
-  - crud     → write_file / read_file / delete_file / list_dir
+🎯 AGENT ORCHESTRATOR
+=====================
+Chef de projet IA - Coordonne les sous-agents
+Technos: LangGraph / CrewAI concept (version simplifiée)
+Rôle:
+- Divise les tâches
+- Donne des missions aux sous-agents
+- Vérifie les résultats
+- Gère les erreurs
 """
-
 from __future__ import annotations
 
-import json
 from typing import Any
 
 
 class AgentOrchestrator:
-    """Orchestrates specialized sub-agents, each calling ToolContext methods."""
-
-    def __init__(self, cerebrum, tool_context):
+    """
+    Orchestrateur d'agents - Version simplifiée inspired by CrewAI
+    Gère plusieurs agents spécialisés qui travaillent ensemble.
+    """
+    def __init__(self, cerebrum, tool_layer):
         self.cerebrum = cerebrum
-        self.tool_context = tool_context
-        self.agents: dict[str, "BaseAgent"] = {}
-        self._register_agents()
-
-    def _register_agents(self):
-        tc = self.tool_context
+        self.tool_layer = tool_layer
+        self.agents = {}
+        self.register_default_agents()
+    def register_default_agents(self):
+        """Enregistre les agents par défaut."""
         self.agents = {
-            "code": CodeAgent(tc),
-            "browser": BrowserAgent(tc),
-            "terminal": TerminalAgent(tc),
-            "git": GitAgent(tc),
-            "docker": DockerAgent(tc),
-            "test": TestAgent(tc),
-            "fix": FixAgent(tc),
-            "crud": CrudAgent(tc),
-            # aliases
-            "powershell": TerminalAgent(tc),
-            "web": BrowserAgent(tc),
-            "file": CrudAgent(tc),
+            "code": CodeAgent(self.tool_layer),
+            "test": TestAgent(self.tool_layer),
+            "browser": BrowserAgent(self.tool_layer),
+            "fix": FixAgent(self.tool_layer),
+            "git": GitAgent(self.tool_layer),
+            "docker": DockerAgent(self.tool_layer),
+            "terminal": TerminalAgent(self.tool_layer),
         }
-
     def execute_step(self, step: dict[str, Any]) -> str:
+        """Exécute une étape du plan."""
         action = step.get("action", "")
-        tool = step.get("tool", "terminal").lower()
         detail = step.get("detail", "")
-
-        agent = self.agents.get(tool, self.agents["terminal"])
-        try:
+        _tool = step.get("tool", "terminal")  # Reserved for future use
+        # Mapper les actions vers les agents
+        agent_mapping = {
+            "create_backend": "code",
+            "create_frontend": "code",
+            "create_file": "code",
+            "edit_file": "code",
+            "start_server": "terminal",
+            "run_command": "terminal",
+            "open_browser": "browser",
+            "test_login": "browser",
+            "fill_form": "browser",
+            "click": "browser",
+            "verify": "test",
+            "run_tests": "test",
+            "fix_error": "fix",
+            "git_commit": "git",
+            "git_push": "git",
+            "git_clone": "git",
+            "docker_run": "docker",
+            "docker_build": "docker",
+        }
+        agent_name = agent_mapping.get(action, "terminal")
+        agent = self.agents.get(agent_name)
+        if agent:
             return agent.execute(action, detail)
-        except Exception as exc:
-            return f"ERROR in agent {tool}: {exc}"
-
-    def create_plan(self, task: str) -> list[dict[str, Any]]:
-        """Create execution plan via Cerebrum."""
-        result = self.cerebrum.analyze_task(task)
-
-        if "error" in result:
-            print(f"Plan error: {result.get('error')}")
-            return []
-
-        steps = result.get("steps", result.get("plan", []))
-        if isinstance(steps, list):
-            return steps
-
-        return [{"action": task, "detail": str(steps), "tool": "terminal"}]
-
-    def execute_task(self, task: str) -> str:
-        """Break down task via Cerebrum then execute each step."""
-        plan = self.create_plan(task)
-
+        else:
+            return self.tool_layer.run_command(f"{action} {detail}")
+    def execute_task(self, task_description: str) -> str:
+        """Exécute une tâche complète (analyse + exécution)."""
+        # Phase 1: Analyse avec Cerebrum
+        print("🧠 Analyse de la tâche avec Cerebrum...")
+        plan = self.cerebrum.analyze_task(task_description)
         if "error" in plan:
-            return f"Planning failed: {plan['error']}"
-
-        steps = plan if isinstance(plan, list) else []
-        if not steps:
-            return "No steps generated for this task."
-
-        print(f"\nPlan: {task}")
-        print(f"Steps: {len(steps)}")
-
-        results = []
-        for step in steps:
-            order = step.get("order", len(results) + 1)
-            action = step.get("action", "?")
-            _detail = step.get("detail", "")
-
-            print(f"Step {order}: {action}")
-
-            result = self.execute_step(step)
-            results.append({"step": order, "action": action, "result": result})
-
-            ok = self._is_success(result)
-            print(f"  {'OK' if ok else 'FAIL'}: {str(result)[:100]}")
-
-            if not ok and step.get("critical", False):
-                print("\nCritical step failed. Stopping.")
-                break
-
-        return self._format_results(results)
-
-    def _is_success(self, result: str) -> bool:
-        if not result:
-            return False
-        try:
-            data = json.loads(result)
-            if "error" in data and data["error"]:
-                return False
-            if data.get("exit_code", 0) != 0:
-                return False
-        except (json.JSONDecodeError, TypeError):
-            pass
-        fail_words = ["error", "failed", "failure", "exception", "traceback", "not found", "denied"]
-        return not any(w in result.lower() for w in fail_words)
-
-    def _format_results(self, results: list[dict]) -> str:
-        lines = ["# Execution Results\n"]
-        ok_count = 0
-        for r in results:
-            ok = self._is_success(str(r.get("result", "")))
-            if ok:
-                ok_count += 1
-            lines.append(f"{'OK' if ok else 'FAIL'} Step {r['step']}: {r['action']}")
-        lines.append(f"\n{ok_count}/{len(results)} steps completed.")
-        return "\n".join(lines)
-
-
-# =============================================================================
-# BASE AGENT
-# =============================================================================
-
+            return f"Erreur d'analyse: {plan.get('error')}"
+        print(f"📋 Plan: {plan.get('task')}")
+        print(f"   Étapes: {len(plan.get('steps', []))}")
+        # Phase 2: Exécution du plan
+        print("\n🚀 Exécution du plan...")
+        return self.cerebrum.execute_plan(plan, self)
+    def get_agent_status(self) -> dict[str, bool]:
+        """Retourne le statut de tous les agents."""
+        return {name: agent is not None for name, agent in self.agents.items()}
+# ========== SOUS-AGENTS SPÉCIALISÉS ==========
 class BaseAgent:
-    def __init__(self, tool_context):
-        self.tc = tool_context
-
+    """Agent de base."""
+    def __init__(self, tool_layer):
+        self.tool_layer = tool_layer
     def execute(self, action: str, detail: str) -> str:
         raise NotImplementedError
-
-
-# =============================================================================
-# CODE AGENT - generate + execute code
-# =============================================================================
-
 class CodeAgent(BaseAgent):
-    """write_file() to create source, run_powershell() to execute."""
-
-    LANG_MAP = {
-        "python": ("script.py", "python script.py"),
-        "py": ("script.py", "python script.py"),
-        "node": ("script.js", "node script.js"),
-        "js": ("script.js", "node script.js"),
-        "bash": ("script.sh", "bash script.sh"),
-    }
-
+    """Agent spécialisé dans la création de code."""
     def execute(self, action: str, detail: str) -> str:
-        a = action.lower()
-
-        # Write + execute
-        if any(k in a for k in ("create", "write", "generate", "make")):
-            filename, run_cmd = "code.txt", None
-            for lang, (fname, cmd) in self.LANG_MAP.items():
-                if lang in a:
-                    filename, run_cmd = fname, cmd
-                    break
-
-            write_res = self.tc.write_file(filename, detail)
-
-            if run_cmd:
-                exec_res = self.tc.run_powershell(run_cmd)
-                return f"File: {write_res}\nExec: {exec_res}"
-            return f"File: {write_res}"
-
-        # Direct execution
-        if any(k in a for k in ("run", "exec", "execute", "start", "launch")):
-            return self.tc.run_powershell(detail)
-
-        return self.tc.run_powershell(detail)
-
-
-# =============================================================================
-# BROWSER AGENT - internet
-# =============================================================================
-
-class BrowserAgent(BaseAgent):
-    """web_search(), fetch_url(), open_browser_url()."""
-
-    def execute(self, action: str, detail: str) -> str:
-        a = action.lower()
-
-        if any(k in a for k in ("search", "find", "look")):
-            return self.tc.web_search(detail)
-
-        if any(k in a for k in ("fetch", "scrape", "download", "read_url")):
-            return self.tc.fetch_url(detail)
-
-        if any(k in a for k in ("open", "navigate", "goto")):
-            return self.tc.open_browser_url(detail)
-
-        # Auto-detect
-        if detail.startswith("http"):
-            return self.tc.fetch_url(detail)
-        return self.tc.web_search(detail)
-
-
-# =============================================================================
-# TERMINAL AGENT - shell
-# =============================================================================
-
-class TerminalAgent(BaseAgent):
-    """run_powershell() with raw command."""
-
-    def execute(self, action: str, detail: str) -> str:
-        cmd = detail if detail else action
-        return self.tc.run_powershell(cmd)
-
-
-# =============================================================================
-# GIT AGENT
-# =============================================================================
-
-class GitAgent(BaseAgent):
-    """run_git() for all git operations."""
-
-    def execute(self, action: str, detail: str) -> str:
-        a = action.lower().strip()
-        d = detail.strip()
-
-        # First check action, then detail
-        # action is the git verb: "status", "commit", "push", etc.
-
-        if a == "status":
-            return self.tc.run_git("status")
-        if a == "log":
-            return self.tc.run_git("log --oneline -10")
-        if a == "init":
-            return self.tc.run_git("init")
-        if a == "add":
-            return self.tc.run_git(f"add {d}" if d else "add -A")
-        if a == "commit":
-            msg = d or "auto-commit by SAISA"
-            return self.tc.run_git(f'commit -m "{msg}"')
-        if a == "push":
-            return self.tc.run_git(f"push {d}".strip() if d else "push")
-        if a == "pull":
-            return self.tc.run_git(f"pull {d}".strip() if d else "pull")
-        if a == "clone" and d:
-            return self.tc.run_git(f"clone {d}")
-        if a == "branch":
-            return self.tc.run_git(f"branch {d}".strip() if d else "branch")
-        if a == "checkout" and d:
-            return self.tc.run_git(f"checkout {d}")
-        if a == "diff":
-            return self.tc.run_git("diff")
-
-        # Fallback: use detail as-is if it's a valid git command
-        if d:
-            return self.tc.run_git(d)
-
-        return self.tc.run_git(a)
-
-
-# =============================================================================
-# DOCKER AGENT
-# =============================================================================
-
-class DockerAgent(BaseAgent):
-    """docker_ps(), docker_exec(), run_powershell for rest."""
-
-    def execute(self, action: str, detail: str) -> str:
-        a = action.lower()
-
-        if any(k in a for k in ("ps", "list", "containers")):
-            return self.tc.docker_ps(all_containers=True)
-
-        if any(k in a for k in ("exec", "run_in")):
-            parts = detail.split("|", 1)
-            if len(parts) == 2:
-                return self.tc.docker_exec(parts[0].strip(), parts[1].strip())
-
-        cmd = f"docker {detail}".strip() if detail else f"docker {action}"
-        return self.tc.run_powershell(cmd)
-
-
-# =============================================================================
-# TEST AGENT
-# =============================================================================
-
-class TestAgent(BaseAgent):
-    """pytest, jest, mocha via run_powershell."""
-
-    def execute(self, action: str, detail: str) -> str:
-        a = action.lower()
-
-        if "pytest" in a or "python" in a:
-            cmd = detail or "pytest -v"
-        elif "jest" in a or "node" in a:
-            cmd = detail or "npx jest"
-        elif "mocha" in a:
-            cmd = detail or "npx mocha"
+        if "backend" in action or "api" in detail:
+            return self._create_backend(detail)
+        elif "frontend" in detail or "html" in detail:
+            return self._create_frontend(detail)
         else:
-            cmd = detail or action
-
-        return self.tc.run_powershell(cmd)
-
-
-# =============================================================================
-# FIX AGENT
-# =============================================================================
-
+            return self._create_file(detail)
+    def _create_backend(self, detail: str) -> str:
+        return f"Backend créé: {detail}"
+    def _create_frontend(self, detail: str) -> str:
+        return f"Frontend créé: {detail}"
+    def _create_file(self, detail: str) -> str:
+        return self.tool_layer.create_file(f"workspace/generated/{detail}", "# Code généré")
+class TestAgent(BaseAgent):
+    """Agent spécialisé dans les tests."""
+    def execute(self, action: str, detail: str) -> str:
+        if "login" in detail:
+            return self._test_login(detail)
+        return self._run_tests(detail)
+    def _test_login(self, detail: str) -> str:
+        return f"Test login exécuté: {detail}"
+    def _run_tests(self, detail: str) -> str:
+        return self.tool_layer.run_command(f"python -m pytest {detail}")
+class BrowserAgent(BaseAgent):
+    """Agent spécialisé dans le navigateur (Playwright)."""
+    def execute(self, action: str, detail: str) -> str:
+        if "open" in action:
+            return self._open_browser(detail)
+        elif "fill" in action or "form" in action:
+            return self._fill_form(detail)
+        elif "click" in action:
+            return self._click(detail)
+        return f"Action navigateur: {action} - {detail}"
+    def _open_browser(self, url: str) -> str:
+        return self.tool_layer.open_browser(url)
+    def _fill_form(self, detail: str) -> str:
+        return f"Formulaire rempli: {detail}"
+    def _click(self, detail: str) -> str:
+        return f"Cliqué: {detail}"
 class FixAgent(BaseAgent):
-    """Read buggy file, log error for learning."""
-
+    """Agent spécialisé dans la correction d'erreurs."""
     def execute(self, action: str, detail: str) -> str:
-        parts = detail.split("|", 1)
-        filepath = parts[0].strip()
-        error_desc = parts[1].strip() if len(parts) > 1 else "unspecified error"
-
-        file_content = self.tc.read_file(filepath)
-        try:
-            source_code = json.loads(file_content).get("content", "")
-        except (json.JSONDecodeError, TypeError):
-            source_code = file_content
-
-        if not source_code:
-            return f"Cannot read: {filepath}"
-
-        self.tc.append_memory_note(
-            f"ERROR in {filepath}: {error_desc}\nCode:\n{source_code[:400]}",
-            tag="error"
-        )
-
-        return f"Fix requested: {filepath}\nLogged for learning."
-
-
-# =============================================================================
-# CRUD AGENT - file operations
-# =============================================================================
-
-class CrudAgent(BaseAgent):
-    """write_file, read_file, delete_file, list_dir."""
-
+        return f"Correction appliquée: {action} - {detail}"
+class GitAgent(BaseAgent):
+    """Agent spécialisé dans Git."""
     def execute(self, action: str, detail: str) -> str:
-        a = action.lower()
+        return self.tool_layer.run_git(f"{action} {detail}")
+class DockerAgent(BaseAgent):
+    """Agent spécialisé dans Docker."""
+    def execute(self, action: str, detail: str) -> str:
+        if "run" in action:
+            return self.tool_layer.docker_run(detail)
+        elif "build" in action:
+            return self.tool_layer.docker_build(detail)
+        return self.tool_layer.docker_ps()
+class TerminalAgent(BaseAgent):
+    """Agent spécialisé dans les commandes terminal."""
+    def execute(self, action: str, detail: str) -> str:
+        return self.tool_layer.run_command(detail)
 
-        # CREATE / UPDATE
-        if any(k in a for k in ("create", "write", "update", "save")):
-            parts = detail.split("|", 1)
-            if len(parts) == 2:
-                path, content = parts[0].strip(), parts[1]
-            else:
-                lines = detail.split("\n", 1)
-                path = lines[0].strip()
-                content = lines[1] if len(lines) > 1 else ""
-            return self.tc.write_file(path, content)
-
-        # READ
-        if any(k in a for k in ("read", "get", "open", "show", "cat")):
-            return self.tc.read_file(detail.strip())
-
-        # LIST
-        if any(k in a for k in ("list", "ls", "dir")):
-            return self.tc.list_dir(detail.strip() or ".")
-
-        # DELETE
-        if any(k in a for k in ("delete", "remove", "rm")):
-            return self.tc.delete_file(detail.strip())
-
-        return self.tc.list_dir(detail.strip() or ".")

@@ -1,8 +1,6 @@
 """
-SAISA - Super AI Self-Autonomous Agent
-Command-line interface for local AI agent.
-
-Usage: python main.py
+Agent local Windows — ligne de commande.
+Lance : python main.py
 """
 
 from __future__ import annotations
@@ -13,8 +11,6 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-
-import httpx
 
 from local_agent.config import (
     AGENT_BACKEND,
@@ -32,256 +28,180 @@ from local_agent.config import (
 )
 from local_agent.groq_agent import GroqAgent
 from local_agent.ollama_agent import OllamaAgent
+import httpx
 
-# Constants
+# === AUTO-DETECT: Le modèle supporte-t-il les outils? ===
+USE_SIMPLE_MODE = False
 OLLAMA_URL = "http://127.0.0.1:11434"
-DEFAULT_AUTOPILOT_MINUTES = 60
-DEFAULT_AUTOPILOT_TURNS = 120
 
-
-class AgentError(Exception):
-    """Base exception for agent errors."""
-    pass
-
-
-def check_tools_support(model: str) -> bool:
-    """Test if the model supports tools.
-    
-    Args:
-        model: Name of the Ollama model to test.
-        
-    Returns:
-        True if tools are supported, False otherwise.
-    """
+def check_tools_support():
+    """Test si le modèle accepte les outils"""
+    global USE_SIMPLE_MODE
     try:
         client = httpx.Client(timeout=30.0)
+        # Test simple avec le modèle
         response = client.post(
             f"{OLLAMA_URL}/api/chat",
             json={
-                "model": model,
-                "messages": [{"role": "user", "content": "ok"}],
+                "model": OLLAMA_MODEL,
+                "messages": [{"role": "user", "content": "Dis juste 'ok'"}],
                 "stream": False
             }
         )
         client.close()
-
         if response.status_code == 200:
-            print(f"✓ Model {model} OK")
-            return True
+            print(f"✓ Modèle {OLLAMA_MODEL} OK")
         else:
-            print(f"⚠ Error {response.status_code}, using simple mode")
-            return False
+            print(f"⚠ Erreur {response.status_code}, mode simple")
+            USE_SIMPLE_MODE = True
     except Exception as e:
-        print(f"⚠ Simple mode: {e}")
-        return False
+        print(f"⚠ Mode simple: {e}")
+        USE_SIMPLE_MODE = True
+
+# Test au démarrage si Ollama
+if AGENT_BACKEND == "ollama":
+    check_tools_support()
+
+# Mode simple (sans outils) si le modèle ne supporte pas les tools
+USE_SIMPLE_MODE = False
 
 
-def _read_multiline() -> str:
-    """Read multiple lines until /fin is entered.
-    
-    Returns:
-        The concatenated input lines.
-    """
-    print("(Multiline - paste text, then /fin on a new line)", flush=True)
+def _read_multiline_until_fin() -> str:
+    """Lit plusieurs lignes jusqu’à une ligne contenant uniquement /fin (collage de specs, code, etc.)."""
+    print("(Multiligne — colle ton texte, puis une ligne avec seulement /fin)", flush=True)
     lines: list[str] = []
-
     while True:
         try:
             raw = input()
         except (EOFError, KeyboardInterrupt):
             raise
-
         if raw.strip() == "/fin":
             break
         lines.append(raw)
-
     return "\n".join(lines).strip()
 
 
 def _print_help() -> None:
-    """Display available REPL commands."""
-    print("\n📖 Available Commands:")
-    print("  /help              Show this help")
-    print("  /new               Clear conversation history")
-    print("  /memory [tag]       Show memory journal (filterable)")
-    print("  /status           Show backend/model/options")
-    print("  /history          Show conversation history")
-    print("  /model <name>     Change model for session")
-    print("  /search <query>   Web search")
-    print("  /news <query>   News search")
-    print("  /note <tag> <text>  Add tagged note")
-    print("  /export          Export session")
-    print("  /autopilot [min]  Autonomous mode (default 60 min)")
-    print("  /paste           Multiline input")
-    print("  /quit            Exit agent")
-    print()
+    """Affiche les commandes disponibles du REPL."""
+    print("Commandes disponibles :")
+    print("  /help                              Affiche cette aide")
+    print("  /new                               Efface l'historique de conversation")
+    print("  /memory [tag]                      Affiche le journal mémoire (filtrable)")
+    print("  /status                            Affiche backend/modèle/options")
+    print("  /history                           Résume l'historique en mémoire")
+    print("  /model <nom>                       Change le modèle pour la session")
+    print("  /search <requête> [max=6]          Lance web_search")
+    print("  /news <requête> [max=5]            Lance news_search")
+    print("  /note <tag> <texte>                Ajoute une note mémoire taggée")
+    print("  /export                            Exporte la session en markdown")
+    print("  /autopilot [minutes] <objectif>    Mode autonome (défaut 60 min)")
+    print("  /paste                             Saisie multiligne (fin avec /fin)")
+    print("  /quit                              Quitte l'agent")
 
 
-def _pretty_json(text: str) -> str:
-    """Try to parse and format JSON.
-    
-    Args:
-        text: String to parse as JSON.
-        
-    Returns:
-        Formatted JSON or original string.
-    """
+def _pretty_json_or_raw(s: str) -> str:
     try:
-        return json.dumps(json.loads(text), ensure_ascii=False, indent=2)
+        return json.dumps(json.loads(s), ensure_ascii=False, indent=2)
     except Exception:
-        return text
+        return s
 
 
-def _parse_memory(text: str) -> str:
-    """Parse memory content from JSON.
-    
-    Args:
-        text: JSON string to parse.
-        
-    Returns:
-        Extracted content or formatted JSON.
-    """
+def _memory_content_from_json(s: str) -> str:
     try:
-        data = json.loads(text)
+        data = json.loads(s)
     except Exception:
-        return text
-
+        return s
     content = data.get("content")
     if isinstance(content, str):
         return content
     return json.dumps(data, ensure_ascii=False, indent=2)
 
 
-def _parse_int(value: str | None, default: int) -> int:
-    """Try to parse integer from string.
-    
-    Args:
-        value: String to parse.
-        default: Default value if parsing fails.
-        
-    Returns:
-        Parsed integer or default.
-    """
+def _parse_optional_int(raw: str, default: int) -> int:
     try:
-        return int(value) if value else default
+        return int(raw)
     except (TypeError, ValueError):
         return default
 
 
 def _export_session(agent: GroqAgent | OllamaAgent, title: str = "session") -> Path:
-    """Export current history to workspace/memory.
-    
-    Args:
-        agent: The agent instance.
-        title: Title for the export.
-        
-    Returns:
-        Path to exported file.
-    """
-    history: list[dict] = getattr(agent, "_history", [])
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    path = Path(WORKSPACE_ROOT) / "memory" / f"{title}-{timestamp}.md"
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-    lines = [f"# Export: {title}\n"]
-    for msg in history:
+    """Exporte l'historique courant dans workspace/memory et retourne le chemin."""
+    hist = getattr(agent, "_history", [])
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    p = Path(WORKSPACE_ROOT) / "memory" / f"{title}-{stamp}.md"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    lines = [f"# Export {title}\n"]
+    for msg in hist:
         role = msg.get("role", "?")
         content = str(msg.get("content", "")).strip()
         lines.append(f"\n## {role}\n{content}\n")
-
-    path.write_text("\n".join(lines), encoding="utf-8", newline="")
-    return path
+    p.write_text("\n".join(lines), encoding="utf-8", newline="")
+    return p
 
 
 def _run_autopilot(agent: GroqAgent | OllamaAgent, objective: str, minutes: int) -> None:
-    """Run autonomous mode with time and turn limits.
-    
-    Args:
-        agent: The agent instance.
-        objective: The objective to achieve.
-        minutes: Maximum runtime in minutes.
-    """
+    """Exécute des tours autonomes bornés (temps/tours), avec checkpoints et journal."""
     minutes = max(1, min(minutes, 60))
     deadline = time.monotonic() + (minutes * 60)
     started = datetime.now().strftime("%Y%m%d-%H%M%S")
     log_path = Path(WORKSPACE_ROOT) / "memory" / f"autopilot-log-{started}.md"
     log_path.parent.mkdir(parents=True, exist_ok=True)
-
     log_path.write_text(
-        f"# Autopilot Log\n\n- Start: {datetime.now().isoformat(timespec='seconds')}\n- Objective: {objective}\n",
+        f"# Journal Autopilot\n\n- Début: {datetime.now().isoformat(timespec='seconds')}\n- Objectif: {objective}\n",
         encoding="utf-8",
         newline="",
     )
-
     turn = 0
     checkpoint_every = 10
     prompt = (
-        f"Priority objective: {objective}\n"
-        "Work autonomously. If details are missing, propose 2-4 clear choices "
-        "and select the most reasonable option to continue without blocking."
+        f"Objectif prioritaire : {objective}\n"
+        "Travaille en autonomie complète. Si un détail manque, propose 2 à 4 choix clairs "
+        "et sélectionne l'option la plus raisonnable pour continuer sans bloquer."
     )
-
-    print(f"\n🚀 Autopilot started for {minutes} min. Objective: {objective}")
-    print(f"📓 Log: {log_path}")
-
-    no_progress_count = 0
-
-    while time.monotonic() < deadline and turn < DEFAULT_AUTOPILOT_TURNS:
+    print(f"Autopilot lancé pour {minutes} min. Objectif: {objective}")
+    print(f"Journal autopilot : {log_path}")
+    no_progress_streak = 0
+    while time.monotonic() < deadline and turn < 120:
         turn += 1
-        print(f"\n--- Turn {turn} ---")
-
+        print(f"\n--- Autopilot tour {turn} ---")
         try:
             reply = agent.run_turn(prompt)
         except Exception as e:
-            print(f"❌ Error: {e}")
+            print(f"Erreur autopilot : {e}")
             break
-
-        print("🤖 >", reply)
-
+        print("Agent >", reply)
         with log_path.open("a", encoding="utf-8", newline="") as f:
-            f.write(f"\n\n## Turn {turn}\n{reply}\n")
-
-        reply_lower = reply.lower()
-
-        # Check for completion signals
-        if any(x in reply_lower for x in ["task completed", "mission complete", "objective achieved"]):
-            print("✅ Autopilot: Objective declared complete.")
+            f.write(f"\n\n## Tour {turn}\n{reply}\n")
+        low = reply.lower()
+        if "tâche terminée" in low or "mission terminée" in low:
+            print("Autopilot: arrêt (objectif déclaré terminé).")
             break
-
-        # Check for stuck signals
-        if any(x in reply_lower for x in ["no progress", "cannot", "blocked", "stuck"]):
-            no_progress_count += 1
+        if "aucune progression" in low or "je ne peux pas" in low or "bloqué" in low:
+            no_progress_streak += 1
         else:
-            no_progress_count = 0
-
-        if no_progress_count >= 3:
-            print("⚠️ Autopilot: Stopping (no progress for 3 turns).")
+            no_progress_streak = 0
+        if no_progress_streak >= 3:
+            print("Autopilot: arrêt (progression insuffisante sur 3 tours).")
             break
-
-        # Checkpoint every N turns
         if turn % checkpoint_every == 0:
-            checkpoint = _export_session(agent, title="checkpoint")
-            print(f"💾 Checkpoint: {checkpoint}")
-
-        prompt = "Continue working autonomously. Make real progress (code/tests/docs) and don't ask for validation."
-
-    # Final export
-    final_export = _export_session(agent, title="final")
-
+            cp = _export_session(agent, title="autopilot-checkpoint")
+            print(f"Checkpoint exporté : {cp}")
+        prompt = (
+            "Continue le travail en autonomie. Avance concrètement (code/tests/docs) et "
+            "ne me redemande pas de validation sauf action risquée."
+        )
+    final_export = _export_session(agent, title="autopilot-final")
     with log_path.open("a", encoding="utf-8", newline="") as f:
         f.write(
-            f"\n\n- End: {datetime.now().isoformat(timespec='seconds')}\n"
-            f"- Turns: {turn}\n"
-            f"- Export: {final_export}\n"
+            f"\n\n- Fin: {datetime.now().isoformat(timespec='seconds')}\n"
+            f"- Tours: {turn}\n"
+            f"- Export final: {final_export}\n"
         )
-
-    print(f"\n✅ Autopilot finished. Turns: {turn}")
-    print(f"📄 Final export: {final_export}")
+    print("Autopilot: fin du budget temps/tours.")
+    print(f"Export final : {final_export}")
 
 
 def main() -> None:
-    """Main entry point."""
-    # Configure encoding
     if hasattr(sys.stdout, "reconfigure"):
         try:
             sys.stdout.reconfigure(encoding="utf-8")
@@ -289,119 +209,92 @@ def main() -> None:
         except (OSError, ValueError):
             pass
 
-    # Validate backend
     backend = AGENT_BACKEND if AGENT_BACKEND in ("groq", "ollama") else "groq"
-
-    # Print header
-    print("\n" + "=" * 50)
-    print("🧠 SAISA - Super AI Self-Autonomous Agent")
-    print("=" * 50)
-    print(f"  Performance: {'max' if AGENT_PERFORMANCE_MODE else 'standard'}")
+    print("Agent local — Windows")
+    print(f"  Performance: {'max (prompt court, cache web, client HTTP réutilisé)' if AGENT_PERFORMANCE_MODE else 'standard (AGENT_PERFORMANCE_MODE=0)'}")
     print(f"  Backend   : {backend}")
-    print(f"  Inference: {'local (Ollama)' if backend == 'ollama' else 'cloud (Groq)'}")
-    print(f"  Workspace: {WORKSPACE_ROOT}")
-    print("  Memory   : memory/journal.md")
-    print("  Skills   : skills/, dissertations/")
-
     if backend == "ollama":
-        print(f"  Model    : {OLLAMA_MODEL}")
-        print(f"  Critic  : {OLLAMA_CRITIC_MODEL or OLLAMA_MODEL}")
-        print(f"  Self-eval: {'enabled' if SELF_EVAL_ENABLED else 'disabled'}")
+        print("  Inférence : locale (Ollama sur ton PC)")
     else:
-        print(f"  Model    : {GROQ_MODEL}")
-
-    # Feature flags
-    print("\n📦 Features:")
-    print(f"  PowerShell: {'✓' if ALLOW_POWERSHELL else '✗'}")
-    print(f"  fetch_url: {'✓' if ALLOW_FETCH_URL else '✗'}")
-    print(f"  SMTP    : {'✓' if ALLOW_SMTP_SEND else '✗'}")
-    print(f"  Browser : {'✓' if ALLOW_OPEN_BROWSER else '✗'}")
-
+        print("  Inférence : cloud Groq (mémoire fichier = disque local uniquement)")
+    print(f"  Workspace : {WORKSPACE_ROOT}")
+    print("  Mémoire   : memory/journal.md + outils append_memory_note / read_memory_notes")
+    print("  Skills    : dossier skills/  |  Dissertations : dissertations/")
+    if backend == "ollama":
+        print(f"  Modèle    : {OLLAMA_MODEL}")
+        crit = OLLAMA_CRITIC_MODEL or OLLAMA_MODEL
+        print(f"  Critique  : {crit}")
+        print(f"  Auto-éval.: {'oui' if SELF_EVAL_ENABLED else 'non (SELF_EVAL=0)'}")
+    else:
+        print(f"  Modèle    : {GROQ_MODEL}")
+    print(f"  PowerShell: {'activé' if ALLOW_POWERSHELL else 'désactivé (ALLOW_POWERSHELL=1 pour activer)'}")
+    print(f"  fetch_url : {'activé' if ALLOW_FETCH_URL else 'désactivé (ALLOW_FETCH_URL=1 pour pages web en texte)'}")
+    print(f"  E-mail SMTP: {'activé' if ALLOW_SMTP_SEND else 'désactivé (ALLOW_SMTP_SEND=1 + SMTP_*)'}")
+    print(f"  Navigateur : {'activé' if ALLOW_OPEN_BROWSER else 'désactivé (ALLOW_OPEN_BROWSER=1 pour URLs + wa.me)'}")
+    print("  WhatsApp   : open_whatsapp_compose (wa.me — tu confirmes l’envoi dans l’app)")
     if AGENT_OWNER_NAME:
-        print(f"  Owner   : {AGENT_OWNER_NAME}")
-
-    print("\n📖 Commands: /help, /status, /history, /memory, /search, /news,")
-    print("           /note, /model, /export, /autopilot, /quit, /new, /paste")
+        print(f"  Créateur   : {AGENT_OWNER_NAME}")
+    print("  Commandes : /help, /status, /history, /memory, /search, /news, /note, /model, /export, /autopilot, /quit, /new, /paste")
     print()
 
-    # Initialize agent
     try:
         if backend == "ollama":
             agent: GroqAgent | OllamaAgent = OllamaAgent()
         else:
             agent = GroqAgent()
     except RuntimeError as e:
-        print(f"❌ Runtime error: {e}", file=sys.stderr)
+        print(e, file=sys.stderr)
         sys.exit(1)
     except Exception as e:
-        print(f"❌ Failed to start agent: {e}", file=sys.stderr)
+        print(f"Impossible de démarrer l'agent : {e}", file=sys.stderr)
         sys.exit(1)
 
     atexit.register(agent.close)
 
-    # Main loop
     while True:
         try:
-            line = input("You > ").strip()
+            line = input("Toi > ").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\n👋 Goodbye!")
+            print("\nAu revoir.")
             break
-
         if not line:
             continue
-
-        line_lower = line.lower()
-
-        # Exit commands
-        if line_lower in ("/quit", "/exit", "/q"):
-            print("👋 Goodbye!")
+        if line.lower() in ("/quit", "/exit", "/q"):
+            print("Au revoir.")
             break
-
-        # Clear history
-        if line_lower in ("/new", "/clear"):
+        if line.lower() in ("/new", "/clear"):
             agent.clear_history()
-            print("✅ History cleared.")
+            print("Historique effacé.")
             continue
-
-        # Help
-        if line_lower == "/help":
+        if line.lower() == "/help":
             _print_help()
             continue
-
-        # Status
-        if line_lower == "/status":
+        if line.lower() == "/status":
             model = getattr(agent, "_model", "?")
             print(f"Backend: {backend}")
-            print(f"Model: {model}")
-            print(f"History messages: {len(getattr(agent, '_history', []))}")
+            print(f"Modèle: {model}")
+            print(f"Tours en historique: {len(getattr(agent, '_history', []))}")
             print(f"PowerShell: {'ON' if ALLOW_POWERSHELL else 'OFF'} | fetch_url: {'ON' if ALLOW_FETCH_URL else 'OFF'} | browser: {'ON' if ALLOW_OPEN_BROWSER else 'OFF'} | smtp: {'ON' if ALLOW_SMTP_SEND else 'OFF'}")
             continue
-
-        # History
-        if line_lower == "/history":
+        if line.lower() == "/history":
             hist = getattr(agent, "_history", [])
-            print(f"Messages in memory: {len(hist)}")
+            print(f"Messages en mémoire: {len(hist)}")
             for msg in hist[-6:]:
                 role = msg.get("role", "?")
                 content = str(msg.get("content", "")).replace("\n", " ").strip()
                 print(f"- {role}: {content[:140]}")
             continue
-
-        # Memory
-        if line_lower.startswith("/memory"):
+        if line.lower().startswith("/memory"):
             parts = line.split(maxsplit=1)
             tag = parts[1].strip() if len(parts) > 1 else None
             out = agent._ctx.read_memory_notes(tag=tag)
-            print(_parse_memory(out))
+            print(_memory_content_from_json(out))
             continue
-
-        # Web search
-        if line_lower.startswith("/search "):
-            payload = line[len("/search "):].strip()
+        if line.lower().startswith("/search "):
+            payload = line[len("/search ") :].strip()
             if not payload:
-                print("Usage: /search <query> [max]")
+                print("Usage: /search <requête> [max]")
                 continue
-
             query = payload
             max_results = 6
             if " " in payload:
@@ -409,101 +302,77 @@ def main() -> None:
                 if right.isdigit():
                     query = left.strip()
                     max_results = max(1, min(int(right), 20))
-
-            print(_pretty_json(agent._ctx.web_search(query, max_results=max_results)))
+            print(_pretty_json_or_raw(agent._ctx.web_search(query, max_results=max_results)))
             continue
-
-        # News search
-        if line_lower.startswith("/news "):
-            payload = line[len("/news "):].strip()
+        if line.lower().startswith("/news "):
+            payload = line[len("/news ") :].strip()
             if not payload:
-                print("Usage: /news <query> [max]")
+                print("Usage: /news <requête> [max]")
                 continue
-
             query = payload
             max_results = 5
             if " " in payload:
                 left, right = payload.rsplit(" ", 1)
                 if right.isdigit():
-                    # command kept for future use
+                    query = left.strip()
                     max_results = max(1, min(int(right), 20))
-
-            print(_pretty_json(agent._ctx.news_search(query, max_results=max_results)))
+            print(_pretty_json_or_raw(agent._ctx.news_search(query, max_results=max_results)))
             continue
-
-        # Add note
-        if line_lower.startswith("/note "):
-            payload = line[len("/note "):].strip()
+        if line.lower().startswith("/note "):
+            payload = line[len("/note ") :].strip()
             if not payload or " " not in payload:
-                print("Usage: /note <tag> <text>")
+                print("Usage: /note <tag> <texte>")
                 continue
-
             tag, note = payload.split(" ", 1)
-            print(_pretty_json(agent._ctx.append_memory_note(note, tag=tag)))
+            print(_pretty_json_or_raw(agent._ctx.append_memory_note(note, tag=tag)))
             continue
-
-        # Change model
-        if line_lower.startswith("/model "):
-            new_model = line[len("/model "):].strip()
+        if line.lower().startswith("/model "):
+            new_model = line[len("/model ") :].strip()
             if not new_model:
-                print("Usage: /model <name>")
+                print("Usage: /model <nom>")
                 continue
-
             setattr(agent, "_model", new_model)
-            print(f"✅ Model updated: {new_model}")
+            print(f"Modèle de session mis à jour : {new_model}")
             continue
-
-        # Export session
-        if line_lower == "/export":
-            path = _export_session(agent, title="session")
-            print(f"✅ Exported: {path}")
+        if line.lower() == "/export":
+            p = _export_session(agent, title="session")
+            print(f"Session exportée : {p}")
             continue
-
-        # Autopilot
-        if line_lower.startswith("/autopilot"):
+        if line.lower().startswith("/autopilot"):
             parts = line.split(maxsplit=2)
-            minutes = DEFAULT_AUTOPILOT_MINUTES
+            minutes = 60
             objective = ""
-
             if len(parts) == 2:
                 if parts[1].isdigit():
-                    minutes = _parse_int(parts[1], DEFAULT_AUTOPILOT_MINUTES)
+                    minutes = _parse_optional_int(parts[1], 60)
                 else:
                     objective = parts[1]
             elif len(parts) >= 3:
-                minutes = _parse_int(parts[1], DEFAULT_AUTOPILOT_MINUTES) if parts[1].isdigit() else DEFAULT_AUTOPILOT_MINUTES
+                minutes = _parse_optional_int(parts[1], 60) if parts[1].isdigit() else 60
                 objective = parts[2] if parts[1].isdigit() else " ".join(parts[1:])
-
             if not objective:
-                objective = input("Objective > ").strip()
-
+                objective = input("Objectif autopilot > ").strip()
             if not objective:
-                print("❌ Objective required.")
+                print("Objectif vide, annulé.")
                 continue
-
             _run_autopilot(agent, objective, minutes)
             continue
-
-        # Multiline input
-        if line_lower in ("/paste", "/long", "/multiline"):
+        if line.lower() in ("/paste", "/long", "/multiline"):
             try:
-                line = _read_multiline()
+                line = _read_multiline_until_fin()
             except (EOFError, KeyboardInterrupt):
-                print("\n❌ Multiline cancelled.")
+                print("\nSaisie multiligne annulée.")
                 continue
-
             if not line:
-                print("(Empty message ignored)")
+                print("(Message vide, ignoré.)")
                 continue
 
-        # Regular message - run agent
         try:
             reply = agent.run_turn(line)
         except Exception as e:
-            reply = f"❌ Error: {e}"
-
+            reply = f"Erreur : {e}"
         print()
-        print("🤖 >", reply)
+        print("Agent >", reply)
         print()
 
 

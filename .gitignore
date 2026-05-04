@@ -1,4 +1,4 @@
-# Python
+.env
 __pycache__/
 *.pyc
 *.pyo
@@ -15,14 +15,9 @@ build/
 .pytest_cache/
 .coverage
 htmlcov/
-
-# Data
 *.db
 *.sqlite
 *.log
-memory/
-*.vault
-workspace/memory/agent_memory.db
 
 # IDE
 .vscode/
@@ -35,5 +30,7 @@ workspace/memory/agent_memory.db
 .DS_Store
 Thumbs.db
 
-# Local config
-.env
+# SAISA specific
+saisa_sessions/
+memory/
+*.vault
