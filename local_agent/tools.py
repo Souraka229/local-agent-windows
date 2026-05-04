@@ -550,41 +550,41 @@ class ToolContext:
     # ========== NOUVELLES MÉTHODES ==========
     
     def run_git(self, command: str) -> str:
-        """Exécute une commande git dans le workspace."""
+        """Execute a git command in the workspace."""
         if not ALLOW_GIT:
-            return json.dumps({"error": "Git désactivé. Mets ALLOW_GIT=1 dans .env."}, ensure_ascii=False)
+            return json.dumps({"error": "Git disabled. Set ALLOW_GIT=1 in .env."}, ensure_ascii=False)
         
         cmd = (command or "").strip()
         if not cmd:
-            return json.dumps({"error": "Commande git vide."}, ensure_ascii=False)
+            return json.dumps({"error": "Empty git command."}, ensure_ascii=False)
         
-        # Sécuriser la commande
+        # Security
         forbidden = ["rm -rf /", "dd if=", ":(){:|:&};:", "chmod -R 777 /"]
         for forb in forbidden:
             if forb in cmd:
-                return json.dumps({"error": f"Commande potentiellement dangereuse: {forb}"}, ensure_ascii=False)
+                return json.dumps({"error": f"Dangerous command: {forb}"}, ensure_ascii=False)
         
         try:
-            # Utiliser le dossier workspace comme cwd
+            # Use shell=False for better security, pass as a list
+            args = ["git"] + cmd.split()
             proc = subprocess.run(
-                cmd.split(),
+                args,
                 capture_output=True,
                 text=True,
                 timeout=60,
                 cwd=str(WORKSPACE_ROOT),
-                shell=True,
                 encoding="utf-8",
                 errors="replace",
             )
             out = (proc.stdout or "") + (proc.stderr or "")
             if len(out) > MAX_SHELL_OUTPUT:
-                out = out[:MAX_SHELL_OUTPUT] + "\n... [tronqué]"
+                out = out[:MAX_SHELL_OUTPUT] + "\n... [truncated]"
             return json.dumps({
                 "exit_code": proc.returncode,
                 "output": out,
             }, ensure_ascii=False)
         except subprocess.TimeoutExpired:
-            return json.dumps({"error": "Timeout après 60s."}, ensure_ascii=False)
+            return json.dumps({"error": "Timeout after 60s."}, ensure_ascii=False)
         except Exception as e:
             return json.dumps({"error": str(e)}, ensure_ascii=False)
     

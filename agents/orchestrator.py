@@ -228,34 +228,41 @@ class GitAgent(BaseAgent):
     """run_git() for all git operations."""
 
     def execute(self, action: str, detail: str) -> str:
-        a = action.lower()
+        a = action.lower().strip()
+        d = detail.strip()
 
-        if detail.startswith("git "):
-            return self.tc.run_git(detail[4:].strip())
-
-        if "init" in a:
-            return self.tc.run_git("init")
-        if "status" in a:
+        # First check action, then detail
+        # action is the git verb: "status", "commit", "push", etc.
+        
+        if a == "status":
             return self.tc.run_git("status")
-        if "log" in a:
+        if a == "log":
             return self.tc.run_git("log --oneline -10")
-        if "add" in a:
-            return self.tc.run_git(f"add {detail}" if detail else "add -A")
-        if "commit" in a:
-            msg = detail or "auto-commit by SAISA"
+        if a == "init":
+            return self.tc.run_git("init")
+        if a == "add":
+            return self.tc.run_git(f"add {d}" if d else "add -A")
+        if a == "commit":
+            msg = d or "auto-commit by SAISA"
             return self.tc.run_git(f'commit -m "{msg}"')
-        if "push" in a:
-            return self.tc.run_git(f"push {detail}".strip())
-        if "pull" in a:
-            return self.tc.run_git(f"pull {detail}".strip())
-        if "clone" in a:
-            return self.tc.run_git(f"clone {detail}")
-        if "branch" in a:
-            return self.tc.run_git(f"branch {detail}".strip())
-        if "checkout" in a:
-            return self.tc.run_git(f"checkout {detail}")
-
-        return self.tc.run_git(detail.strip() or action)
+        if a == "push":
+            return self.tc.run_git(f"push {d}".strip() if d else "push")
+        if a == "pull":
+            return self.tc.run_git(f"pull {d}".strip() if d else "pull")
+        if a == "clone" and d:
+            return self.tc.run_git(f"clone {d}")
+        if a == "branch":
+            return self.tc.run_git(f"branch {d}".strip() if d else "branch")
+        if a == "checkout" and d:
+            return self.tc.run_git(f"checkout {d}")
+        if a == "diff":
+            return self.tc.run_git("diff")
+        
+        # Fallback: use detail as-is if it's a valid git command
+        if d:
+            return self.tc.run_git(d)
+        
+        return self.tc.run_git(a)
 
 
 # =============================================================================
