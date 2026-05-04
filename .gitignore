@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+workspace/memory/agent_memory.db
