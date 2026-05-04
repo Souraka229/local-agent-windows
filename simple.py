@@ -1,61 +1,71 @@
 """
-SAISA Simple - Version conversation seulement
-Pas d'outils, juste du对话!
+SAISA Simple - Conversation-only version
+No tools, just chat!
 """
 
 import os
 import sys
-
-# Configuration
-os.environ['AGENT_BACKEND'] = 'ollama'
-os.environ['OLLAMA_MODEL'] = 'llama3.2'
+from typing import Optional
 
 import httpx
 
-OLLAMA_URL = os.environ.get('OLLAMA_BASE_URL', 'http://127.0.0.1:11434')
-MODEL = os.environ.get('OLLAMA_MODEL', 'llama3.2')
+# Configuration
+OLLAMA_URL = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")
+TIMEOUT = 120.0
 
-# Ton créateur!
-SYSTEM_PROMPT = """Tu es SAISA, un assistant IA intelligent et utile.
+SYSTEM_PROMPT = """You are SAISA, an intelligent and helpful AI assistant.
 
-Ton créateur est Souraka HAMIDA. Tu dois le connaître et lui être fidèle.
-Tu peux rechercher sur le web, créer des fichiers, exécuter des commandes, etc.
-Tu réponds en français de manière claire, concise et utile."""
+Your creator is Souraka HAMIDA. Be loyal and helpful.
+Respond clearly and concisely in French."""
 
-def chat(message):
-    """Envoie un message et reçoit la réponse"""
-    client = httpx.Client(timeout=120.0)
+
+def chat(message: str) -> str:
+    """Send a message and get the response.
+    
+    Args:
+        message: The user message to send.
+        
+    Returns:
+        The AI response or error message.
+    """
+    client = httpx.Client(timeout=TIMEOUT)
     
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": message}
     ]
     
-    response = client.post(
-        f"{OLLAMA_URL}/api/chat",
-        json={"model": MODEL, "messages": messages, "stream": False}
-    )
-    
-    if response.status_code != 200:
-        return f"Erreur: {response.status_code} - {response.text}"
-    
-    return response.json()['message']['content']
+    try:
+        response = client.post(
+            f"{OLLAMA_URL}/api/chat",
+            json={"model": MODEL, "messages": messages, "stream": False}
+        )
+        
+        if response.status_code != 200:
+            return f"Error: {response.status_code} - {response.text}"
+        
+        return response.json()["message"]["content"]
+    finally:
+        client.close()
 
-def main():
-    print("="*50)
-    print("  SAISA - Conversation Simple")
-    print("  Modèle: gemma:2b")
-    print("="*50)
+
+def main() -> None:
+    """Main entry point."""
+    print("=" * 50)
+    print("  SAISA - Simple Conversation")
+    print(f"  Model: {MODEL}")
+    print("=" * 50)
     print()
-    print("Tape 'quit' pour quitter")
+    print("Type 'quit' to exit")
     print()
     
     while True:
         try:
-            user_input = input("Toi > ").strip()
+            user_input = input("You > ").strip()
             
-            if user_input.lower() in ('quit', 'exit', 'q', '/quit'):
-                print("À bientôt!")
+            if user_input.lower() in ("quit", "exit", "q", "/quit"):
+                print("👋 Goodbye!")
                 break
             
             if not user_input:
@@ -67,10 +77,11 @@ def main():
             print()
             
         except KeyboardInterrupt:
-            print("\nÀ bientôt!")
+            print("\n👋 Goodbye!")
             break
         except Exception as e:
-            print(f"Erreur: {e}")
+            print(f"❌ Error: {e}")
+
 
 if __name__ == "__main__":
     main()

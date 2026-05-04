@@ -1,19 +1,20 @@
 """
-🚀 SAISA - Super AI Self-Autonomous
+SAISA - Super AI Self-Autonomous Agent
 ===================================
-Interface principale pour le terminal
+Main CLI interface for terminal.
 
 Usage:
-    python -m api.cli "crée un SaaS login"
+    python -m api.cli "create a login system"
+    python -m api.cli --stats
+    python -m api.cli --interactive
 """
 
 from __future__ import annotations
 
 import sys
-import asyncio
 from pathlib import Path
 
-# Ajout du path pour imports locaux
+# Add path for local imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from brain.cerebrum import Cerebrum
@@ -25,19 +26,19 @@ from local_agent.config import WORKSPACE_ROOT, OLLAMA_MODEL
 
 class SAISA:
     """
-    Super AI Self-Autonomous - L'IA ultime locale
+    Super AI Self-Autonomous Agent - The ultimate local AI.
     
-    Combine:
-    - Cerebrum (cerveau)
-    - Orchestrator (chef de projet)
-    - Tool Layer (mains)
-    - Memory (apprentissage)
+    Combines:
+    - Cerebrum (brain)
+    - Orchestrator (project manager)
+    - Tool Layer (tools)
+    - Memory (learning)
     """
     
     def __init__(self):
-        print("🚀 Initialisation de SAISA...")
+        print("🚀 Initializing SAISA...")
         
-        # Initialiser les composants
+        # Initialize components
         self.tool_layer = ToolLayer(WORKSPACE_ROOT)
         self.cerebrum = Cerebrum()
         self.orchestrator = AgentOrchestrator(self.cerebrum, self.tool_layer)
@@ -45,91 +46,99 @@ class SAISA:
         
         print(f"   🧠 Cerebrum: {OLLAMA_MODEL}")
         print(f"   📁 Workspace: {WORKSPACE_ROOT}")
-        print(f"   🧠 Mémoire: {self.memory.db_path}")
-        print("   ✅ Prêt!\n")
+        print(f"   💾 Memory: {self.memory.db_path}")
+        print("   ✅ Ready!\n")
+    
     
     def run(self, task: str) -> str:
-        """Exécute une tâche."""
-        print(f"📝 Tâche: {task}\n")
+        """Execute a task.
+        
+        Args:
+            task: The task description.
+            
+        Returns:
+            The task result or error message.
+        """
+        print(f"📝 Task: {task}\n")
         
         try:
-            # Exécution avec le feedback loop
+            # Execute with feedback loop
             result = self.orchestrator.execute_task(task)
             
-            # Apprendre du résultat
+            # Learn from result
             self.memory.analyze_and_learn(
                 user_input=task,
                 agent_response=result,
-                tools_used=[],  # À améliorer
+                tools_used=[],
                 success="error" not in result.lower()
             )
             
             return result
             
         except Exception as e:
-            error_msg = f"Erreur: {str(e)}"
-            self.memory.learn_from_error(str(e), "Contactez le développeur")
+            error_msg = f"❌ Error: {str(e)}"
+            self.memory.learn_from_error(str(e), "Contact developer")
             return error_msg
     
     def stats(self) -> dict:
-        """Affiche les statistiques."""
+        """Get statistics."""
         return self.memory.get_stats()
     
     def close(self):
-        """Ferme proprement."""
+        """Clean up resources."""
         self.cerebrum.close()
 
 
 def main():
-    """Point d'entrée CLI."""
+    """CLI entry point."""
     if len(sys.argv) < 2:
         print("""
 🧠 SAISA - Super AI Self-Autonomous
 ===================================
 
 Usage:
-    python -m api.cli "ta tâche"
+    python -m api.cli "your task"
     python -m api.cli --stats
     python -m api.cli --interactive
 
-Exemples:
-    python -m api.cli "crée un fichier hello.py"
-    python -m api.cli "ouvre google.com"
-    python -m api.cli "teste le site localhost:3000"
+Examples:
+    python -m api.cli "create hello.py"
+    python -m api.cli "open google.com"
+    python -m api.cli "test localhost:3000"
 """)
         sys.exit(1)
     
     arg = sys.argv[1]
     
     if arg == "--stats":
-        # Afficher les stats
+        # Show stats
         from memory.semantic.memory_system import MemorySystem
         mem = MemorySystem()
         stats = mem.get_stats()
-        print("\n📊 Statistiques d'apprentissage:")
+        print("\n📊 Learning Statistics:")
         print(f"   Conversations: {stats['conversations']}")
-        print(f"   Erreurs apprises: {stats['errors_learned']}")
-        print(f"   Erreurs résolues: {stats['errors_solved']}")
-        print(f"   Compétences: {stats['skills_acquired']}")
-        print(f"   Tâches accomplies: {stats['tasks_completed']}")
-        print(f"   Score d'apprentissage: {stats['learning_score']}/100")
+        print(f"   Errors learned: {stats['errors_learned']}")
+        print(f"   Errors solved: {stats['errors_solved']}")
+        print(f"   Skills: {stats['skills_acquired']}")
+        print(f"   Tasks completed: {stats['tasks_completed']}")
+        print(f"   Learning score: {stats['learning_score']}/100")
         return
     
     if arg == "--interactive":
-        # Mode interactif
+        # Interactive mode
         saisa = SAISA()
-        print("Mode interactif. Tapez 'quit' pour quitter.\n")
+        print("Interactive mode. Type 'quit' to exit.\n")
         
         while True:
             try:
-                task = input("Vous> ").strip()
+                task = input("You> ").strip()
                 if task.lower() in ("quit", "exit", "q"):
                     break
                 if not task:
                     continue
-                    
+                
                 result = saisa.run(task)
-                print(f"\n{saisa.run(task)}\n")
+                print(f"\n{result}\n")
                 
             except KeyboardInterrupt:
                 break
@@ -137,10 +146,10 @@ Exemples:
                 break
         
         saisa.close()
-        print("\n👋 Au revoir!")
+        print("\n👋 Goodbye!")
         return
     
-    # Exécution simple
+    # Simple execution
     task = " ".join(sys.argv[1:])
     saisa = SAISA()
     result = saisa.run(task)
